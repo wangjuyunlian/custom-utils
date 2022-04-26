@@ -1,0 +1,21 @@
+[package]
+name = "custom-utils"
+version = "0.1.0"
+edition = "2021"
+description = "Provide customized tools based on features"
+repository = "https://github.com/jm-observer/custom-utils.git"
+
+license-file = "../LICENSE"
+readme = "../README.md"
+
+[dependencies]
+
+
+[features]
+
+default = []
+
+rustls = []
+
+flexi-log = []
+
