@@ -7,6 +7,9 @@ repository = "https://github.com/jm-observer/custom-utils.git"
 
 license-file = "LICENSE"
 readme = "README.md"
+exclude = [
+    ".cargo_vcs_info.json",
+]
 
 [dependencies]
 
