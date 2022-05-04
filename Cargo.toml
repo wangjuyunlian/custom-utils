@@ -9,13 +9,26 @@ license-file = "LICENSE"
 readme = "README.md"
 
 [dependencies]
-
+anyhow = "1.0"
+#log = "0.4"
+flexi_logger = { version = "0.22", optional = true }
+time = {version = "0.3.7", features = ["macros"], optional = true}
 
 [features]
 
 default = []
 
+develop = []
+prod = []
+
 rustls = []
 
-flexi-log = []
+log = ["flexi_logger", "time"]
+
+[[example]]
+name = "prod"
+required-features = ["prod"]
+[[example]]
+name = "dev"
+required-features = ["develop"]
 
