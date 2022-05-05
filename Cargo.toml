@@ -10,25 +10,29 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0"
-log = { version = "0.4", optional = true }
-flexi_logger = { version = "0.22", optional = true }
+log = { version = "0.4" }
+flexi_logger = { version = "0.22", optional = true, features = ["use_chrono_for_offset"] }
 time = {version = "0.3.7", features = ["macros"], optional = true}
+tokio = {version ="1.18.0", features = ["signal", "rt-multi-thread", "macros", "time"]}
+
+[target.'cfg(unix)'.dependencies]
+libsystemd = {version ="0.5.0", optional = true}
 
 [features]
-
 default = []
-
-develop = []
+dev = []
 prod = []
-
 rustls = []
-
-logger = ["flexi_logger", "time", "log"]
+logger = ["flexi_logger", "time"]
+daemon = ["libsystemd"]
 
 [[example]]
 name = "prod"
-required-features = ["prod", "logger"]
+required-features = ["prod", "logger", "daemon"]
 [[example]]
-name = "dev"
-required-features = ["develop", "logger"]
+name = "dev_win"
+required-features = ["dev", "logger", "daemon"]
+[[example]]
+name = "dev_unix"
+required-features = ["dev", "logger", "daemon"]
 

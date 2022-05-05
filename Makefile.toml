@@ -1,0 +1,9 @@
+[tasks.dev_unix]
+command = "cargo"
+args = ["run", "--example", "dev_unix", "--features=dev,logger,daemon"]
+[tasks.dev_win]
+command = "cargo"
+args = ["run", "--example", "dev_win", "--features=dev,logger,daemon"]
+[tasks.prod]
+command = "cargo"
+args = ["check", "--example", "prod", "--features=prod,logger,daemon"]
