@@ -10,7 +10,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0"
-#log = "0.4"
+log = { version = "0.4", optional = true }
 flexi_logger = { version = "0.22", optional = true }
 time = {version = "0.3.7", features = ["macros"], optional = true}
 
@@ -23,12 +23,12 @@ prod = []
 
 rustls = []
 
-log = ["flexi_logger", "time"]
+logger = ["flexi_logger", "time", "log"]
 
 [[example]]
 name = "prod"
-required-features = ["prod"]
+required-features = ["prod", "logger"]
 [[example]]
 name = "dev"
-required-features = ["develop"]
+required-features = ["develop", "logger"]
 
