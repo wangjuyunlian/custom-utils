@@ -8,21 +8,41 @@ repository = "https://github.com/jm-observer/custom-utils.git"
 license-file = "LICENSE"
 readme = "README.md"
 
+include = [
+    "Makefile.toml", "LICENSE", "Cargo.toml", "README.md", ".gitignore", "tests/*.rs", "src/**/*.rs", "examples/*.rs"
+]
+
 [dependencies]
 anyhow = "1.0"
 log = { version = "0.4" }
+tokio = {version ="1.18", features = ["signal", "rt-multi-thread", "macros", "time"]}
+# ------------- logger start----------------------
 flexi_logger = { version = "0.22", optional = true, features = ["use_chrono_for_offset"] }
 time = {version = "0.3.7", features = ["macros"], optional = true}
-tokio = {version ="1.18.0", features = ["signal", "rt-multi-thread", "macros", "time"]}
-
+# ------------- tls_util start----------------------
+picky = { version = "6.3", features = ["chrono_conversion"], optional = true}
+rsa =  { version = "0.6", optional = true}
+chrono = { version = "0.4", optional = true}
+rand = { version = "0.8.5", optional = true}
+der-parser = { version = "8", optional = true}
+x509-parser = { version ="0.13", features=["validate", "verify"],optional = true}
+# ------------- tls start----------------------
+rustls-pemfile = {version ="1", optional = true}
+rustls-native-certs = {version ="0.6", optional = true}
+rustls = {version ="0.20", optional = true}
+# ------------- daemon start----------------------
 [target.'cfg(unix)'.dependencies]
 libsystemd = {version ="0.5.0", optional = true}
+
+[dev-dependencies]
+picky = { version = "6.3", features = ["chrono_conversion"]}
 
 [features]
 default = []
 dev = []
 prod = []
-rustls = []
+tls = ["rustls-pemfile", "rustls-native-certs", "rustls"]
+tls-util = ["picky", "rsa", "chrono", "rand", "der-parser", "x509-parser"]
 logger = ["flexi_logger", "time"]
 daemon = ["libsystemd"]
 
@@ -36,3 +56,9 @@ required-features = ["dev", "logger", "daemon"]
 name = "dev_unix"
 required-features = ["dev", "logger", "daemon"]
 
+[[test]]
+name = "util_tls_util_print"
+required-features = ["tls-util"]
+[[test]]
+name = "util_tls_util"
+required-features = ["tls-util"]

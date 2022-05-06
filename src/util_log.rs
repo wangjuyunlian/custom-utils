@@ -31,19 +31,19 @@ fn with_thread(
     )
 }
 
-pub fn default_debug_logger(app: &str) -> std::result::Result<LoggerHandle, FlexiLoggerError> {
-    default_logger(app, Debug)
+pub fn logger_default_debug(app: &str) -> std::result::Result<LoggerHandle, FlexiLoggerError> {
+    logger_default(app, Debug)
 }
-pub fn default_info_logger(app: &str) -> std::result::Result<LoggerHandle, FlexiLoggerError> {
-    default_logger(app, Info)
+pub fn logger_default_info(app: &str) -> std::result::Result<LoggerHandle, FlexiLoggerError> {
+    logger_default(app, Info)
 }
-pub fn default_logger(
+pub fn logger_default(
     app: &str,
     level: LevelFilter,
 ) -> std::result::Result<LoggerHandle, FlexiLoggerError> {
-    default_logger_target(app, level, init_target)
+    logger_default_target(app, level, init_target)
 }
-pub fn default_logger_target(
+pub fn logger_default_target(
     app: &str,
     level: LevelFilter,
     target_fn: fn(Logger, &str) -> Logger,
