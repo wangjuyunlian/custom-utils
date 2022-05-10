@@ -3,6 +3,7 @@ use log::debug;
 use std::cell::Ref;
 use std::collections::Bound;
 use std::ops::{Deref, RangeBounds, RangeInclusive};
+use time::Weekday;
 
 // use time::OffsetDateTime;
 //
@@ -280,6 +281,36 @@ pub struct MonthDayHourMinuterSecondConf {
     hours: Hours,
     minuters: Minuters,
     seconds: Seconds,
+}
+
+// impl MonthDayHourMinuterSecondConf {
+//     fn test(&self) {
+//         let now = time::OffsetDateTime::now_local().unwrap();
+//         let date = now.clone().date();
+//     }
+//     // fn today(&self) {
+//     //     let now = time::OffsetDateTime::now_local().unwrap();
+//     //     let date = now.clone().date();
+//     //     match self.month_days {
+//     //         Days::WeekDay(day) => {
+//     //             let day = weekday_to_usize(date.weekday());
+//     //         }
+//     //         Days::MonthDay(day) => {}
+//     //     }
+//     // }
+// }
+
+#[inline]
+fn weekday_to_usize(day: Weekday) -> usize {
+    match day {
+        Weekday::Monday => 1,
+        Weekday::Tuesday => 2,
+        Weekday::Wednesday => 3,
+        Weekday::Thursday => 4,
+        Weekday::Friday => 5,
+        Weekday::Saturday => 6,
+        Weekday::Sunday => 7,
+    }
 }
 
 impl From<WeekDays> for Days {
