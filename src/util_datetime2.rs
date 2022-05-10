@@ -1,23 +1,26 @@
 use crate::util_datetime::MonthDaysBuilder;
 use anyhow::{bail, Result};
-use std::fmt::Display;
-use std::ops::{Add, AddAssign, BitOr, BitOrAssign, Bound, RangeBounds, RangeInclusive, Shl, Sub};
+use std::fmt::{Debug, Display, Formatter};
+use std::ops::{
+    Add, AddAssign, BitAnd, BitOr, BitOrAssign, Bound, RangeBounds, RangeInclusive, Shl, Sub,
+};
 use std::process::Output;
 use time::Weekday;
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MonthDays(u32);
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct WeekDays(u8);
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Hours(u32);
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Minuters(u64);
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Seconds(u64);
 impl Operator for Hours {
     const MIN: Self::ValTy = 0;
     const MAX: Self::ValTy = 23;
     const ONE: Self::ValTy = 1;
+    const ZERO: Self::ValTy = 0;
     const DEFAULT_MAX: Self::ValTy = u32::MAX >> 8;
     type ValTy = u32;
     fn default() -> Self {
@@ -34,6 +37,7 @@ impl Operator for Seconds {
     const MIN: Self::ValTy = 0;
     const MAX: Self::ValTy = 59;
     const ONE: Self::ValTy = 1;
+    const ZERO: Self::ValTy = 0;
     const DEFAULT_MAX: Self::ValTy = u64::MAX >> 4;
     type ValTy = u64;
     fn default() -> Self {
@@ -50,6 +54,7 @@ impl Operator for Minuters {
     const MIN: Self::ValTy = 0;
     const MAX: Self::ValTy = 59;
     const ONE: Self::ValTy = 1;
+    const ZERO: Self::ValTy = 0;
     const DEFAULT_MAX: Self::ValTy = u64::MAX >> 4;
     type ValTy = u64;
     fn default() -> Self {
@@ -67,6 +72,7 @@ impl Operator for MonthDays {
     const MIN: Self::ValTy = 1;
     const MAX: Self::ValTy = 31;
     const ONE: Self::ValTy = 1;
+    const ZERO: Self::ValTy = 0;
     const DEFAULT_MAX: Self::ValTy = u32::MAX << 1;
     type ValTy = u32;
     fn default() -> Self {
@@ -84,6 +90,7 @@ impl Operator for WeekDays {
     const MIN: Self::ValTy = 1;
     const MAX: Self::ValTy = 7;
     const ONE: Self::ValTy = 1;
+    const ZERO: Self::ValTy = 0;
     const DEFAULT_MAX: Self::ValTy = u8::MAX << 1;
     type ValTy = u8;
 
@@ -103,6 +110,7 @@ pub trait Operator: Sized {
     const MIN: Self::ValTy;
     const MAX: Self::ValTy;
     const ONE: Self::ValTy;
+    const ZERO: Self::ValTy;
     const DEFAULT_MAX: Self::ValTy;
     type ValTy: BitOr<Output = Self::ValTy>
         + Shl<Output = Self::ValTy>
@@ -112,6 +120,7 @@ pub trait Operator: Sized {
         + Sub<Output = Self::ValTy>
         + PartialOrd
         + AddAssign
+        + BitAnd<Output = Self::ValTy>
         + Display;
 
     #[inline]
@@ -168,12 +177,25 @@ pub trait Operator: Sized {
         Self::check(end)?;
         // let range = RangeInclusive::new(first, end);
         let mut val = self._val();
-        while first > end {
+        while first <= end {
             val |= (Self::ONE << first);
             first += Self::ONE;
         }
         self._mut_val(val);
         Ok(self)
+    }
+
+    fn to_vec(&self) -> Vec<Self::ValTy> {
+        let mut res = Vec::new();
+        let val = self._val();
+        let mut first = Self::MIN;
+        while first <= Self::MAX {
+            if (val & (Self::ONE << first)) > Self::ZERO {
+                res.push(first);
+            }
+            first += Self::ONE;
+        }
+        res
     }
     #[inline]
     fn check(index: Self::ValTy) -> Result<()> {
@@ -276,9 +298,56 @@ impl From<WeekDays> for DayConfBuilder {
         Self(builder.into())
     }
 }
+impl Debug for Seconds {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0 == u64::MAX >> 4 {
+            write!(f, "all seconds.")
+        } else {
+            write!(f, "seconds: {:?}.", self.to_vec())
+        }
+    }
+}
+impl Debug for Minuters {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0 == u64::MAX >> 4 {
+            write!(f, "all minuters.")
+        } else {
+            write!(f, "minuters: {:?}.", self.to_vec())
+        }
+    }
+}
+impl Debug for Hours {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0 == u32::MAX >> 8 {
+            write!(f, "all hours.")
+        } else {
+            write!(f, "hours: {:?}.", self.to_vec())
+        }
+    }
+}
+impl Debug for MonthDays {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0 == u32::MAX << 1 {
+            write!(f, "all month days.")
+        } else {
+            write!(f, "month days: {:?}.", self.to_vec())
+        }
+    }
+}
+impl Debug for WeekDays {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0 == u8::MAX << 1 {
+            write!(f, "all week days.")
+        } else {
+            write!(f, "week days: {:?}.", self.to_vec())
+        }
+    }
+}
 #[cfg(test)]
 mod test {
-    use crate::util_datetime2::{DayConfBuilder, Hours, Minuters, Operator, Seconds, WeekDays};
+    use crate::util_datetime2::{
+        DayConfBuilder, Hours, Minuters, MonthDays, Operator, Seconds, WeekDays,
+    };
 
     #[test]
     fn test() -> anyhow::Result<()> {
@@ -287,6 +356,51 @@ mod test {
             .build_with_minuter_builder(Minuters::default_value(15)?)
             .build_with_second_builder(Seconds::default_value(0)?);
         println!("{:?}", conf);
+
+        let conf = DayConfBuilder::default_week_days(WeekDays::default_all())
+            .build_with_hours(Hours::default_all())
+            .build_with_minuter_builder(Minuters::default_all())
+            .build_with_second_builder(Seconds::default_all());
+        println!("{:?}", conf);
+
+        let month_days = MonthDays::default_all();
+        println!("{:?}", month_days);
+        Ok(())
+    }
+    #[test]
+    fn test_week_days() -> anyhow::Result<()> {
+        let days = WeekDays::default_value(1)?.add_range(3..=5)?.to_vec();
+        assert_eq!(vec![1, 3, 4, 5], days);
+        let days = WeekDays::default_all().to_vec();
+        assert_eq!(vec![1, 2, 3, 4, 5, 6, 7], days);
+        assert!(WeekDays::default_value(0).is_err());
+        assert!(WeekDays::default_value(8).is_err());
+        Ok(())
+    }
+    #[test]
+    fn test_range_bound() -> anyhow::Result<()> {
+        assert!(WeekDays::default_range(1..=7).is_ok());
+        assert!(WeekDays::default_range(0..=4).is_err());
+        assert!(WeekDays::default_range(3..=8).is_err());
+        assert!(WeekDays::default_range(0..=8).is_err());
+        Ok(())
+    }
+    #[test]
+    fn test_bound() -> anyhow::Result<()> {
+        assert!(WeekDays::default_value(0).is_err());
+        assert!(WeekDays::default_value(8).is_err());
+
+        assert!(MonthDays::default_value(0).is_err());
+        assert!(MonthDays::default_value(32).is_err());
+
+        assert!(Hours::default_value(0).is_ok());
+        assert!(Hours::default_value(24).is_err());
+
+        assert!(Minuters::default_value(0).is_ok());
+        assert!(Minuters::default_value(60).is_err());
+
+        assert!(Seconds::default_value(0).is_ok());
+        assert!(Seconds::default_value(60).is_err());
         Ok(())
     }
 }
