@@ -1,11 +1,11 @@
-use crate::util_datetime::MonthDaysBuilder;
+pub mod data;
+
+use crate::util_datetime::data::{AsData, DateTime, WeekDay};
 use anyhow::{bail, Result};
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{
-    Add, AddAssign, BitAnd, BitOr, BitOrAssign, Bound, RangeBounds, RangeInclusive, Shl, Sub,
-};
-use std::process::Output;
-use time::Weekday;
+use std::ops::{Add, AddAssign, BitAnd, BitOr, BitOrAssign, Bound, RangeBounds, Shl, Sub};
+use time::macros::date;
+
 #[derive(Clone)]
 pub struct MonthDays(u32);
 #[derive(Clone)]
@@ -23,7 +23,7 @@ impl Operator for Hours {
     const ZERO: Self::ValTy = 0;
     const DEFAULT_MAX: Self::ValTy = u32::MAX >> 8;
     type ValTy = u32;
-    fn default() -> Self {
+    fn _default() -> Self {
         Self(0)
     }
     fn _val(&self) -> Self::ValTy {
@@ -40,7 +40,7 @@ impl Operator for Seconds {
     const ZERO: Self::ValTy = 0;
     const DEFAULT_MAX: Self::ValTy = u64::MAX >> 4;
     type ValTy = u64;
-    fn default() -> Self {
+    fn _default() -> Self {
         Self(0)
     }
     fn _val(&self) -> Self::ValTy {
@@ -57,7 +57,7 @@ impl Operator for Minuters {
     const ZERO: Self::ValTy = 0;
     const DEFAULT_MAX: Self::ValTy = u64::MAX >> 4;
     type ValTy = u64;
-    fn default() -> Self {
+    fn _default() -> Self {
         Self(0)
     }
     fn _val(&self) -> Self::ValTy {
@@ -75,7 +75,7 @@ impl Operator for MonthDays {
     const ZERO: Self::ValTy = 0;
     const DEFAULT_MAX: Self::ValTy = u32::MAX << 1;
     type ValTy = u32;
-    fn default() -> Self {
+    fn _default() -> Self {
         Self(0)
     }
 
@@ -94,7 +94,7 @@ impl Operator for WeekDays {
     const DEFAULT_MAX: Self::ValTy = u8::MAX << 1;
     type ValTy = u8;
 
-    fn default() -> Self {
+    fn _default() -> Self {
         Self(0)
     }
 
@@ -123,62 +123,54 @@ pub trait Operator: Sized {
         + BitAnd<Output = Self::ValTy>
         + Display;
 
+    fn _default() -> Self;
     #[inline]
-    fn default() -> Self;
-    #[inline]
-    fn default_value(val: Self::ValTy) -> Result<Self> {
-        let mut ins = Self::default();
+    fn default_value(val: impl AsData<Self::ValTy>) -> Self {
+        let ins = Self::_default();
         ins.add(val)
     }
     #[inline]
-    fn default_range(range: impl RangeBounds<Self::ValTy>) -> Result<Self> {
-        let mut ins = Self::default();
+    fn default_range<A: AsData<Self::ValTy>>(range: impl RangeBounds<A>) -> Result<Self> {
+        let ins = Self::_default();
         ins.add_range(range)
     }
     #[inline]
     fn default_all() -> Self {
-        let mut ins = Self::default();
+        let mut ins = Self::_default();
         ins._mut_val(Self::DEFAULT_MAX);
         ins
     }
 
-    fn add_array(mut self, vals: &[Self::ValTy]) -> Result<Self> {
-        for i in vals {
-            Self::check(*i)?;
-        }
+    fn add_array(mut self, vals: &[impl AsData<Self::ValTy>]) -> Self {
         let mut val = self._val();
         for i in vals {
-            val |= (Self::ONE << *i);
+            val |= Self::ONE << i.as_data();
         }
         self._mut_val(val);
-        Ok(self)
+        self
     }
-    fn add(mut self, index: Self::ValTy) -> Result<Self> {
-        Self::check(index)?;
+    fn add(mut self, index: impl AsData<Self::ValTy>) -> Self {
+        let index = index.as_data();
         self._mut_val(self._val() | (Self::ONE << index));
-        Ok(self)
+        self
     }
-    fn add_range(mut self, range: impl RangeBounds<Self::ValTy>) -> Result<Self> {
+    fn add_range<A: AsData<Self::ValTy>>(mut self, range: impl RangeBounds<A>) -> Result<Self> {
         let mut first = match range.start_bound() {
-            Bound::Unbounded => {
-                bail!("not support unbounder!");
-            }
-            Bound::Included(first) => *first,
-            Bound::Excluded(first) => (*first) + Self::ONE,
+            Bound::Unbounded => Self::MIN,
+            Bound::Included(first) => first.as_data(),
+            Bound::Excluded(first) => first.as_data() + Self::ONE,
         };
         let end = match range.end_bound() {
-            Bound::Unbounded => {
-                bail!("not support unbounder!");
-            }
-            Bound::Included(end) => *end,
-            Bound::Excluded(end) => *end - Self::ONE,
+            Bound::Unbounded => Self::MAX,
+            Bound::Included(end) => end.as_data(),
+            Bound::Excluded(end) => end.as_data() - Self::ONE,
         };
-        Self::check(first)?;
-        Self::check(end)?;
-        // let range = RangeInclusive::new(first, end);
+        if first > end {
+            bail!("error:{} > {}", first, end);
+        }
         let mut val = self._val();
         while first <= end {
-            val |= (Self::ONE << first);
+            val |= Self::ONE << first;
             first += Self::ONE;
         }
         self._mut_val(val);
@@ -197,22 +189,90 @@ pub trait Operator: Sized {
         }
         res
     }
-    #[inline]
-    fn check(index: Self::ValTy) -> Result<()> {
-        if index >= Self::MIN && index <= Self::MAX {
-            Ok(())
-        } else {
-            bail!("can't out of range {}..={} ", Self::MIN, Self::MAX);
-        }
+    fn contain<D: AsData<Self::ValTy>>(&self, index: D) -> bool {
+        let index = index.as_data();
+        let val = self._val();
+        val & (Self::ONE << index) > Self::ZERO
     }
+    fn min_self_next<D: AsData<Self::ValTy>>(
+        &self,
+        index: D,
+    ) -> (Self::ValTy, Option<Self::ValTy>, Option<Self::ValTy>) {
+        let self_val = if self.contain(index) {
+            Some(index.as_data())
+        } else {
+            None
+        };
+        let min = self.min_val();
+        let next = self.next(index);
+        (min, self_val, next)
+    }
+    fn next<D: AsData<Self::ValTy>>(&self, index: D) -> Option<Self::ValTy> {
+        let mut first = index.as_data() + Self::ONE;
+        let val = self._val();
+        while first <= Self::MAX {
+            if (val & (Self::ONE << first)) > Self::ZERO {
+                return Some(first);
+            }
+            first += Self::ONE;
+        }
+        None
+        // first = Self::MIN;
+        // while first <= index.as_data() {
+        //     if (val & (Self::ONE << first)) > Self::ZERO {
+        //         return Some(first);
+        //     }
+        //     first += Self::ONE;
+        // }
+        // unreachable!("it is a bug");
+    }
+    fn min_val(&self) -> Self::ValTy {
+        let mut first = Self::MIN;
+        let val = self._val();
+        while first <= Self::MAX {
+            if (val & (Self::ONE << first)) > Self::ZERO {
+                return first;
+            }
+            first += Self::ONE;
+        }
+        unreachable!("it is a bug");
+    }
+    // fn find<D: AsData<Self::ValTy>>(&self, index: D, with_self: bool) -> Self::ValTy {
+    //     let index = index.as_data();
+    //     let val = self._val();
+    //     let index = if with_self { index } else { index + Self::ONE };
+    //     let mut first = index;
+    //     while first <= Self::MAX {
+    //         if (val & (Self::ONE << first)) > Self::ZERO {
+    //             return first;
+    //         }
+    //         first += Self::ONE;
+    //     }
+    //     first = Self::MIN;
+    //     while first < index {
+    //         if (val & (Self::ONE << first)) > Self::ZERO {
+    //             return first;
+    //         }
+    //         first += Self::ONE;
+    //     }
+    //     unreachable!("it is a bug");
+    // }
+    // #[inline]
+    // fn check(index: Self::ValTy) -> Result<()> {
+    //     if index >= Self::MIN && index <= Self::MAX {
+    //         Ok(())
+    //     } else {
+    //         bail!("can't out of range {}..={} ", Self::MIN, Self::MAX);
+    //     }
+    // }
     fn _val(&self) -> Self::ValTy;
     fn _mut_val(&mut self, val: Self::ValTy);
 }
 
 #[derive(Debug, Clone)]
 pub enum Days {
-    MonthDay(MonthDays),
-    WeekDay(WeekDays),
+    MD(MonthDays),
+    WD(WeekDays),
 }
 pub struct DayConfBuilder(Days);
 impl DayConfBuilder {
@@ -250,7 +310,7 @@ pub struct DayHourMinuterConfBuilder {
 impl DayHourMinuterConfBuilder {
     pub fn build_with_second_builder(self, seconds: Seconds) -> DayHourMinuterSecondConf {
         DayHourMinuterSecondConf {
-            month_days: self.month_days,
+            days: self.month_days,
             hours: self.hours,
             minuters: self.minuters,
             seconds,
@@ -259,33 +319,40 @@ impl DayHourMinuterConfBuilder {
 }
 #[derive(Debug, Clone)]
 pub struct DayHourMinuterSecondConf {
-    month_days: Days,
+    days: Days,
     hours: Hours,
     minuters: Minuters,
     seconds: Seconds,
 }
 
-#[inline]
-fn weekday_to_usize(day: Weekday) -> u8 {
-    match day {
-        Weekday::Monday => 1,
-        Weekday::Tuesday => 2,
-        Weekday::Wednesday => 3,
-        Weekday::Thursday => 4,
-        Weekday::Friday => 5,
-        Weekday::Saturday => 6,
-        Weekday::Sunday => 7,
+impl DayHourMinuterSecondConf {
+    pub fn next(&self) -> Result<u64> {
+        let datetime = DateTime::default()?;
+        let (hour_min, hour_self, hour_next) = self.hours.min_self_next(datetime.hour);
+        let (minuter_min, minuter_self, minuter_next) =
+            self.minuters.min_self_next(datetime.minuter);
+        let (second_min, second_self, second_next) = self.seconds.min_self_next(datetime.second);
+        match &self.days {
+            Days::MD(monthdays) => {
+                let (day_min, day_self, day_next) = monthdays.min_self_next(datetime.month_day);
+            }
+            Days::WD(weekdays) => {
+                let (day_min, day_self, day_next) = weekdays.min_self_next(datetime.week_day);
+            }
+        };
+
+        todo!()
     }
 }
 
 impl From<WeekDays> for Days {
     fn from(days: WeekDays) -> Self {
-        Self::WeekDay(days)
+        Self::WD(days)
     }
 }
 impl From<MonthDays> for Days {
     fn from(days: MonthDays) -> Self {
-        Self::MonthDay(days)
+        Self::MD(days)
     }
 }
 impl From<MonthDays> for DayConfBuilder {
@@ -345,16 +412,17 @@ impl Debug for WeekDays {
 }
 #[cfg(test)]
 mod test {
-    use crate::util_datetime2::{
-        DayConfBuilder, Hours, Minuters, MonthDays, Operator, Seconds, WeekDays,
-    };
+    use super::{DayConfBuilder, Hours, Minuters, MonthDays, Operator, Seconds, WeekDays};
+    use crate::util_datetime::data::{Minuter, Second, WeekDay};
 
     #[test]
     fn test() -> anyhow::Result<()> {
-        let conf = DayConfBuilder::default_week_days(WeekDays::default_value(1)?.add_range(3..5)?)
-            .build_with_hours(Hours::default_all())
-            .build_with_minuter_builder(Minuters::default_value(15)?)
-            .build_with_second_builder(Seconds::default_value(0)?);
+        let conf = DayConfBuilder::default_week_days(
+            WeekDays::default_value(WeekDay::W1).add_range(WeekDay::W3..WeekDay::W5)?,
+        )
+        .build_with_hours(Hours::default_all())
+        .build_with_minuter_builder(Minuters::default_value(Minuter::M15))
+        .build_with_second_builder(Seconds::default_value(Second::S0));
         println!("{:?}", conf);
 
         let conf = DayConfBuilder::default_week_days(WeekDays::default_all())
@@ -369,38 +437,27 @@ mod test {
     }
     #[test]
     fn test_week_days() -> anyhow::Result<()> {
-        let days = WeekDays::default_value(1)?.add_range(3..=5)?.to_vec();
+        let wds = WeekDays::default_value(WeekDay::W1).add_range(WeekDay::W3..=WeekDay::W5)?;
+        let days = wds.to_vec();
         assert_eq!(vec![1, 3, 4, 5], days);
+        // assert_eq!(1, wds.find(WeekDay::W1, true));
+        // assert_eq!(3, wds.find(WeekDay::W1, false));
+        // assert_eq!(1, wds.find(WeekDay::W6, false));
+
+        let wds = WeekDays::default_value(WeekDay::W1).add_array(&[WeekDay::W3, WeekDay::W5]);
+        let days = wds.to_vec();
+        assert_eq!(vec![1, 3, 5], days);
+        // assert_eq!(1, wds.find(WeekDay::W1, true));
+        // assert_eq!(3, wds.find(WeekDay::W1, false));
+        // assert_eq!(1, wds.find(WeekDay::W6, false));
+
         let days = WeekDays::default_all().to_vec();
         assert_eq!(vec![1, 2, 3, 4, 5, 6, 7], days);
-        assert!(WeekDays::default_value(0).is_err());
-        assert!(WeekDays::default_value(8).is_err());
-        Ok(())
-    }
-    #[test]
-    fn test_range_bound() -> anyhow::Result<()> {
-        assert!(WeekDays::default_range(1..=7).is_ok());
-        assert!(WeekDays::default_range(0..=4).is_err());
-        assert!(WeekDays::default_range(3..=8).is_err());
-        assert!(WeekDays::default_range(0..=8).is_err());
-        Ok(())
-    }
-    #[test]
-    fn test_bound() -> anyhow::Result<()> {
-        assert!(WeekDays::default_value(0).is_err());
-        assert!(WeekDays::default_value(8).is_err());
+        assert!(WeekDays::default_range(WeekDay::W5..WeekDay::W5).is_err());
+        assert!(WeekDays::default_range(WeekDay::W5..WeekDay::W1).is_err());
+        let days = WeekDays::default_range(WeekDay::W5..WeekDay::W6)?.to_vec();
+        assert_eq!(vec![5], days);
 
-        assert!(MonthDays::default_value(0).is_err());
-        assert!(MonthDays::default_value(32).is_err());
-
-        assert!(Hours::default_value(0).is_ok());
-        assert!(Hours::default_value(24).is_err());
-
-        assert!(Minuters::default_value(0).is_ok());
-        assert!(Minuters::default_value(60).is_err());
-
-        assert!(Seconds::default_value(0).is_ok());
-        assert!(Seconds::default_value(60).is_err());
         Ok(())
     }
 }

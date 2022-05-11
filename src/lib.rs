@@ -1,7 +1,6 @@
 #[cfg(feature = "daemon")]
 mod util_daemon;
 pub mod util_datetime;
-pub mod util_datetime2;
 #[cfg(feature = "logger")]
 mod util_log;
 #[cfg(feature = "tls")]
