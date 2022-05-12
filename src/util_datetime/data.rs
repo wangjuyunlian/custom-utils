@@ -1,6 +1,8 @@
-use time::{OffsetDateTime, Weekday};
+use std::ops::{Add, AddAssign};
+use time::{OffsetDateTime, Time, Weekday};
 #[derive(Copy, Clone)]
 pub(crate) struct DateTime {
+    pub(crate) date: time::Date,
     pub(crate) month_day: InnerMonthDay,
     pub(crate) week_day: InnerWeekDay,
     pub(crate) hour: InnerHour,
@@ -231,11 +233,13 @@ impl From<OffsetDateTime> for DateTime {
     fn from(tmp: OffsetDateTime) -> Self {
         let month_day = InnerMonthDay(tmp.clone().date().day() as u32);
         let week_day: InnerWeekDay = tmp.clone().date().weekday().into();
+        let date = tmp.clone().date();
         let time = tmp.time();
         let hour = InnerHour(time.clone().hour() as u32);
         let minuter = InnerMinuter(time.clone().minute() as u64);
         let second = InnerSecond(time.second() as u64);
         Self {
+            date,
             month_day,
             week_day,
             hour,

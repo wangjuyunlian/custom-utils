@@ -1,3 +1,5 @@
+extern crate core;
+
 #[cfg(feature = "daemon")]
 mod util_daemon;
 pub mod util_datetime;

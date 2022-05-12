@@ -5,6 +5,7 @@ use anyhow::{bail, Result};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Add, AddAssign, BitAnd, BitOr, BitOrAssign, Bound, RangeBounds, Shl, Sub};
 use time::macros::date;
+use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
 
 #[derive(Clone)]
 pub struct MonthDays(u32);
@@ -207,6 +208,7 @@ pub trait Operator: Sized {
         let next = self.next(index);
         (min, self_val, next)
     }
+    /// 取下一个持有值
     fn next<D: AsData<Self::ValTy>>(&self, index: D) -> Option<Self::ValTy> {
         let mut first = index.as_data() + Self::ONE;
         let val = self._val();
@@ -226,6 +228,7 @@ pub trait Operator: Sized {
         // }
         // unreachable!("it is a bug");
     }
+    /// 取最小的持有值
     fn min_val(&self) -> Self::ValTy {
         let mut first = Self::MIN;
         let val = self._val();
@@ -274,43 +277,57 @@ pub enum Days {
     MD(MonthDays),
     WD(WeekDays),
 }
-pub struct DayConfBuilder(Days);
+pub struct DayConfBuilder {
+    month_days: Option<MonthDays>,
+    week_days: Option<WeekDays>,
+}
 impl DayConfBuilder {
-    pub fn default_month_days(days: MonthDays) -> Self {
-        Self(days.into())
+    pub fn default_month_days(month_days: MonthDays) -> Self {
+        Self {
+            month_days: Some(month_days),
+            week_days: None,
+        }
     }
-    pub fn default_week_days(days: WeekDays) -> Self {
-        Self(days.into())
+    pub fn default_week_days(week_days: WeekDays) -> Self {
+        Self {
+            month_days: None,
+            week_days: Some(week_days),
+        }
     }
     pub fn build_with_hours(self, hours: Hours) -> DayHourConfBuilder {
         DayHourConfBuilder {
-            month_days: self.0.into(),
+            month_days: self.month_days,
+            week_days: self.week_days,
             hours,
         }
     }
 }
 pub struct DayHourConfBuilder {
-    month_days: Days,
+    month_days: Option<MonthDays>,
+    week_days: Option<WeekDays>,
     hours: Hours,
 }
 impl DayHourConfBuilder {
     pub fn build_with_minuter_builder(self, minuters: Minuters) -> DayHourMinuterConfBuilder {
         DayHourMinuterConfBuilder {
             month_days: self.month_days,
+            week_days: self.week_days,
             hours: self.hours,
             minuters,
         }
     }
 }
 pub struct DayHourMinuterConfBuilder {
-    month_days: Days,
+    month_days: Option<MonthDays>,
+    week_days: Option<WeekDays>,
     hours: Hours,
     minuters: Minuters,
 }
 impl DayHourMinuterConfBuilder {
     pub fn build_with_second_builder(self, seconds: Seconds) -> DayHourMinuterSecondConf {
         DayHourMinuterSecondConf {
-            days: self.month_days,
+            month_days: self.month_days,
+            week_days: self.week_days,
             hours: self.hours,
             minuters: self.minuters,
             seconds,
@@ -319,50 +336,157 @@ impl DayHourMinuterConfBuilder {
 }
 #[derive(Debug, Clone)]
 pub struct DayHourMinuterSecondConf {
-    days: Days,
-    hours: Hours,
-    minuters: Minuters,
-    seconds: Seconds,
+    pub(crate) month_days: Option<MonthDays>,
+    pub(crate) week_days: Option<WeekDays>,
+    pub(crate) hours: Hours,
+    pub(crate) minuters: Minuters,
+    pub(crate) seconds: Seconds,
 }
 
 impl DayHourMinuterSecondConf {
-    pub fn next(&self) -> Result<u64> {
-        let datetime = DateTime::default()?;
-        let (hour_min, hour_self, hour_next) = self.hours.min_self_next(datetime.hour);
-        let (minuter_min, minuter_self, minuter_next) =
-            self.minuters.min_self_next(datetime.minuter);
-        let (second_min, second_self, second_next) = self.seconds.min_self_next(datetime.second);
-        match &self.days {
-            Days::MD(monthdays) => {
-                let (day_min, day_self, day_next) = monthdays.min_self_next(datetime.month_day);
+    pub fn next(&self) -> Result<OffsetDateTime> {
+        self._next(DateTime::default()?)
+    }
+    fn _next(&self, datetime: DateTime) -> Result<OffsetDateTime> {
+        let day_self = self
+            .month_days
+            .as_ref()
+            .map_or(false, |x| x.contain(datetime.month_day))
+            || self
+                .week_days
+                .as_ref()
+                .map_or(false, |x| x.contain(datetime.week_day));
+
+        let hour_self = self.hours.contain(datetime.hour);
+        let minuter_self = self.minuters.contain(datetime.minuter);
+
+        let (mut day_possible, mut hour_possible, mut minuter_possible, mut second_possible) =
+            if day_self {
+                if hour_self {
+                    if minuter_self {
+                        (
+                            Possible::Oneself,
+                            Possible::Oneself,
+                            Possible::Oneself,
+                            Possible::Next,
+                        )
+                    } else {
+                        (
+                            Possible::Oneself,
+                            Possible::Oneself,
+                            Possible::Next,
+                            Possible::Min,
+                        )
+                    }
+                } else {
+                    (
+                        Possible::Oneself,
+                        Possible::Next,
+                        Possible::Min,
+                        Possible::Min,
+                    )
+                }
+            } else {
+                (Possible::Next, Possible::Min, Possible::Min, Possible::Min)
+            };
+        let (second, second_recount) = get_val(second_possible, &self.seconds, datetime.second);
+        if second_recount {
+            second_possible = Possible::Min;
+            minuter_possible = Possible::Next;
+        }
+        let (minuter, minuter_recount) =
+            get_val(minuter_possible, &self.minuters, datetime.minuter);
+        if minuter_recount {
+            minuter_possible = Possible::Min;
+            hour_possible = Possible::Next;
+        }
+        let (hour, hour_recount) = get_val(hour_possible, &self.hours, datetime.hour);
+        if hour_recount {
+            hour_possible = Possible::Min;
+            day_possible = Possible::Next;
+        }
+        let time_next = time::Time::from_hms(hour as u8, minuter as u8, second as u8)?;
+        let date_month = if let Some(month_days) = &self.month_days {
+            let (month_day, month_day_recount) =
+                get_val(day_possible, month_days, datetime.month_day);
+            if month_day_recount {
+                let mut date = datetime.date.clone();
+                date = date.replace_month(date.clone().month().next())?;
+                Some(date.replace_day(month_day as u8)?)
+            } else {
+                let mut date = datetime.date.clone();
+                Some(date.replace_day(month_day as u8)?)
             }
-            Days::WD(weekdays) => {
-                let (day_min, day_self, day_next) = weekdays.min_self_next(datetime.week_day);
-            }
+        } else {
+            None
         };
-
-        todo!()
+        let date_week = if let Some(month_days) = &self.week_days {
+            let (week_day, week_day_recount) = get_val(day_possible, month_days, datetime.week_day);
+            if week_day_recount {
+                let mut date = datetime.date.clone();
+                date += Duration::days((week_day + 7 - datetime.week_day.as_data()) as i64);
+                Some(date)
+            } else {
+                let mut date = datetime.date.clone();
+                date += Duration::days((week_day - datetime.week_day.as_data()) as i64);
+                Some(date)
+            }
+        } else {
+            None
+        };
+        let date = if let Some(date_month) = date_month {
+            if let Some(date_week) = date_week {
+                if date_month > date_week {
+                    date_week
+                } else {
+                    date_month
+                }
+            } else {
+                date_month
+            }
+        } else {
+            date_week.unwrap()
+        };
+        Ok(PrimitiveDateTime::new(date, time_next).assume_utc())
     }
 }
 
-impl From<WeekDays> for Days {
-    fn from(days: WeekDays) -> Self {
-        Self::WD(days)
-    }
+pub fn get_val<D: Operator>(
+    possible: Possible,
+    d: &D,
+    oneself: impl AsData<D::ValTy>,
+) -> (D::ValTy, bool) {
+    let mut re_count = false;
+    let data = match possible {
+        Possible::Min => d.min_val(),
+        Possible::Oneself => oneself.as_data(),
+        Possible::Next => {
+            if let Some(data) = d.next(oneself) {
+                data
+            } else {
+                re_count = true;
+                d.min_val()
+            }
+        }
+    };
+    (data, re_count)
 }
-impl From<MonthDays> for Days {
-    fn from(days: MonthDays) -> Self {
-        Self::MD(days)
-    }
+
+#[derive(Copy, Clone)]
+pub enum Possible {
+    Min,
+    Oneself,
+    Next,
 }
+
 impl From<MonthDays> for DayConfBuilder {
     fn from(builder: MonthDays) -> Self {
-        Self(builder.into())
+        DayConfBuilder::default_month_days(builder)
     }
 }
 impl From<WeekDays> for DayConfBuilder {
     fn from(builder: WeekDays) -> Self {
-        Self(builder.into())
+        DayConfBuilder::default_week_days(builder)
     }
 }
 impl Debug for Seconds {
