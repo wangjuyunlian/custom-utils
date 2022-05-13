@@ -1,6 +1,5 @@
-use std::ops::{Add, AddAssign};
-use time::{OffsetDateTime, Time, Weekday};
-#[derive(Copy, Clone)]
+use time::{OffsetDateTime, Weekday};
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) struct DateTime {
     pub(crate) date: time::Date,
     pub(crate) month_day: InnerMonthDay,
@@ -213,15 +212,15 @@ pub enum Second {
     S59,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) struct InnerWeekDay(pub(crate) u8);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) struct InnerMonthDay(pub(crate) u32);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) struct InnerHour(pub(crate) u32);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) struct InnerMinuter(pub(crate) u64);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) struct InnerSecond(pub(crate) u64);
 
 impl DateTime {

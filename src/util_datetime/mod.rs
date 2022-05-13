@@ -1,11 +1,10 @@
 pub mod data;
 
-use crate::util_datetime::data::{AsData, DateTime, WeekDay};
+use crate::util_datetime::data::{AsData, DateTime};
 use anyhow::{bail, Result};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Add, AddAssign, BitAnd, BitOr, BitOrAssign, Bound, RangeBounds, Shl, Sub};
-use time::macros::date;
-use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
+use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 #[derive(Clone)]
 pub struct MonthDays(u32);
@@ -141,7 +140,10 @@ pub trait Operator: Sized {
         ins._mut_val(Self::DEFAULT_MAX);
         ins
     }
-
+    fn default_array(vals: &[impl AsData<Self::ValTy>]) -> Self {
+        let ins = Self::_default();
+        ins.add_array(vals)
+    }
     fn add_array(mut self, vals: &[impl AsData<Self::ValTy>]) -> Self {
         let mut val = self._val();
         for i in vals {
@@ -195,19 +197,19 @@ pub trait Operator: Sized {
         let val = self._val();
         val & (Self::ONE << index) > Self::ZERO
     }
-    fn min_self_next<D: AsData<Self::ValTy>>(
-        &self,
-        index: D,
-    ) -> (Self::ValTy, Option<Self::ValTy>, Option<Self::ValTy>) {
-        let self_val = if self.contain(index) {
-            Some(index.as_data())
-        } else {
-            None
-        };
-        let min = self.min_val();
-        let next = self.next(index);
-        (min, self_val, next)
-    }
+    // fn min_self_next<D: AsData<Self::ValTy>>(
+    //     &self,
+    //     index: D,
+    // ) -> (Self::ValTy, Option<Self::ValTy>, Option<Self::ValTy>) {
+    //     let self_val = if self.contain(index) {
+    //         Some(index.as_data())
+    //     } else {
+    //         None
+    //     };
+    //     let min = self.min_val();
+    //     let next = self.next(index);
+    //     (min, self_val, next)
+    // }
     /// 取下一个持有值
     fn next<D: AsData<Self::ValTy>>(&self, index: D) -> Option<Self::ValTy> {
         let mut first = index.as_data() + Self::ONE;
@@ -272,25 +274,25 @@ pub trait Operator: Sized {
     fn _mut_val(&mut self, val: Self::ValTy);
 }
 
-#[derive(Debug, Clone)]
-pub enum Days {
-    MD(MonthDays),
-    WD(WeekDays),
-}
+// #[derive(Debug, Clone)]
+// pub enum Days {
+//     MD(MonthDays),
+//     WD(WeekDays),
+// }
 pub struct DayConfBuilder {
     month_days: Option<MonthDays>,
     week_days: Option<WeekDays>,
 }
 impl DayConfBuilder {
-    pub fn default_month_days(month_days: MonthDays) -> Self {
-        Self {
+    pub fn conf_month_days(self, month_days: MonthDays) -> Self {
+        DayConfBuilder {
             month_days: Some(month_days),
-            week_days: None,
+            week_days: self.week_days,
         }
     }
-    pub fn default_week_days(week_days: WeekDays) -> Self {
-        Self {
-            month_days: None,
+    pub fn conf_week_days(self, week_days: WeekDays) -> Self {
+        DayConfBuilder {
+            month_days: self.month_days,
             week_days: Some(week_days),
         }
     }
@@ -344,6 +346,18 @@ pub struct DayHourMinuterSecondConf {
 }
 
 impl DayHourMinuterSecondConf {
+    pub fn default_month_days(month_days: MonthDays) -> DayConfBuilder {
+        DayConfBuilder {
+            month_days: Some(month_days),
+            week_days: None,
+        }
+    }
+    pub fn default_week_days(week_days: WeekDays) -> DayConfBuilder {
+        DayConfBuilder {
+            month_days: None,
+            week_days: Some(week_days),
+        }
+    }
     pub fn next(&self) -> Result<OffsetDateTime> {
         self._next(DateTime::default()?)
     }
@@ -414,7 +428,7 @@ impl DayHourMinuterSecondConf {
                 date = date.replace_month(date.clone().month().next())?;
                 Some(date.replace_day(month_day as u8)?)
             } else {
-                let mut date = datetime.date.clone();
+                let date = datetime.date.clone();
                 Some(date.replace_day(month_day as u8)?)
             }
         } else {
@@ -481,12 +495,12 @@ pub enum Possible {
 
 impl From<MonthDays> for DayConfBuilder {
     fn from(builder: MonthDays) -> Self {
-        DayConfBuilder::default_month_days(builder)
+        DayHourMinuterSecondConf::default_month_days(builder)
     }
 }
 impl From<WeekDays> for DayConfBuilder {
     fn from(builder: WeekDays) -> Self {
-        DayConfBuilder::default_week_days(builder)
+        DayHourMinuterSecondConf::default_week_days(builder)
     }
 }
 impl Debug for Seconds {
@@ -537,26 +551,167 @@ impl Debug for WeekDays {
 #[cfg(test)]
 mod test {
     use super::{DayConfBuilder, Hours, Minuters, MonthDays, Operator, Seconds, WeekDays};
-    use crate::util_datetime::data::{Minuter, Second, WeekDay};
+    use crate::util_datetime::data::{
+        DateTime, Hour, InnerHour, InnerMinuter, InnerMonthDay, InnerSecond, InnerWeekDay, Minuter,
+        MonthDay, Second, WeekDay,
+    };
+    use crate::util_datetime::{get_val, DayHourMinuterSecondConf, Possible};
+    use anyhow::Result;
+    use time::Month;
 
     #[test]
+    fn test_get_val() -> Result<()> {
+        let some_seconds = Seconds::default_range(Second::S10..Second::S30)?
+            .add_range(Second::S40..=Second::S50)?;
+        assert_eq!(
+            (10, false),
+            get_val(Possible::Min, &some_seconds, Second::S40)
+        );
+        assert_eq!(
+            (40, false),
+            get_val(Possible::Oneself, &some_seconds, Second::S40)
+        );
+        assert_eq!(
+            (41, false),
+            get_val(Possible::Next, &some_seconds, Second::S40)
+        );
+        assert_eq!(
+            (40, false),
+            get_val(Possible::Next, &some_seconds, Second::S29)
+        );
+        assert_eq!(
+            (10, true),
+            get_val(Possible::Next, &some_seconds, Second::S50)
+        );
+
+        Ok(())
+    }
+    #[test]
+    fn test_contain() -> Result<()> {
+        let all_seconds = Seconds::default_all();
+        assert!(all_seconds.contain(Second::S0));
+        assert!(all_seconds.contain(Second::S30));
+        assert!(all_seconds.contain(Second::S59));
+        let some_seconds = Seconds::default_range(Second::S1..Second::S30)?
+            .add_range(Second::S31..=Second::S58)?;
+        assert!(!some_seconds.contain(Second::S59));
+        assert!(!some_seconds.contain(Second::S0));
+        assert!(!some_seconds.contain(Second::S30));
+
+        let all_hours = Hours::default_all();
+        assert!(all_hours.contain(Hour::H10));
+        assert!(all_hours.contain(Hour::H0));
+        assert!(all_hours.contain(Hour::H23));
+        let some_hours =
+            Hours::default_range(Hour::H1..Hour::H10)?.add_range(Hour::H11..=Hour::H22)?;
+        assert!(!some_hours.contain(Hour::H10));
+        assert!(!some_hours.contain(Hour::H0));
+        assert!(!some_hours.contain(Hour::H23));
+
+        let all_weeks = WeekDays::default_all();
+        assert!(all_weeks.contain(WeekDay::W3));
+        assert!(all_weeks.contain(WeekDay::W1));
+        assert!(all_weeks.contain(WeekDay::W7));
+        let some_weeks = WeekDays::default_range(WeekDay::W2..WeekDay::W3)?
+            .add_range(WeekDay::W4..=WeekDay::W6)?;
+        assert!(!some_weeks.contain(WeekDay::W3));
+        assert!(!some_weeks.contain(WeekDay::W1));
+        assert!(!some_weeks.contain(WeekDay::W7));
+        Ok(())
+    }
+    #[test]
     fn test() -> anyhow::Result<()> {
-        let conf = DayConfBuilder::default_week_days(
-            WeekDays::default_value(WeekDay::W1).add_range(WeekDay::W3..WeekDay::W5)?,
-        )
-        .build_with_hours(Hours::default_all())
-        .build_with_minuter_builder(Minuters::default_value(Minuter::M15))
-        .build_with_second_builder(Seconds::default_value(Second::S0));
-        println!("{:?}", conf);
+        let conf = DayHourMinuterSecondConf::default_week_days(WeekDays::default_array(&[
+            WeekDay::W5,
+            WeekDay::W3,
+        ]))
+        .conf_month_days(MonthDays::default_array(&[
+            MonthDay::M5,
+            MonthDay::M15,
+            MonthDay::M24,
+        ]))
+        .build_with_hours(Hours::default_array(&[Hour::H5, Hour::H10, Hour::H15]))
+        .build_with_minuter_builder(Minuters::default_array(&[
+            Minuter::M15,
+            Minuter::M30,
+            Minuter::M45,
+        ]))
+        .build_with_second_builder(Seconds::default_array(&[
+            Second::S15,
+            Second::S30,
+            Second::S45,
+        ]));
 
-        let conf = DayConfBuilder::default_week_days(WeekDays::default_all())
-            .build_with_hours(Hours::default_all())
-            .build_with_minuter_builder(Minuters::default_all())
-            .build_with_second_builder(Seconds::default_all());
-        println!("{:?}", conf);
+        let mut dt0 = DateTime {
+            date: time::Date::from_calendar_date(2022, Month::May, 15)?,
+            month_day: InnerMonthDay(15),
+            week_day: InnerWeekDay(7),
+            hour: InnerHour(10),
+            minuter: InnerMinuter(30),
+            second: InnerSecond(30),
+        };
 
-        let month_days = MonthDays::default_all();
-        println!("{:?}", month_days);
+        {
+            let dist: DateTime = conf._next(dt0)?.into();
+            let mut dt0_dist = dt0.clone();
+            dt0_dist.second = InnerSecond(45);
+            assert!(dist == dt0_dist);
+            dt0_dist.second = InnerSecond(31);
+            assert!(dist != dt0_dist);
+        }
+        //
+        {
+            dt0.second = InnerSecond(45);
+            let dist: DateTime = conf._next(dt0)?.into();
+            let mut dt0_dist = dt0.clone();
+            dt0_dist.second = InnerSecond(15);
+            dt0_dist.minuter = InnerMinuter(45);
+            assert!(dist == dt0_dist);
+        }
+        {
+            dt0.second = InnerSecond(45);
+            dt0.minuter = InnerMinuter(45);
+            let dist: DateTime = conf._next(dt0)?.into();
+            let mut dt0_dist = dt0.clone();
+            dt0_dist.second = InnerSecond(15);
+            dt0_dist.minuter = InnerMinuter(15);
+            dt0_dist.hour = InnerHour(15);
+            assert!(dist == dt0_dist);
+        }
+        {
+            dt0.second = InnerSecond(45);
+            dt0.minuter = InnerMinuter(45);
+            dt0.hour = InnerHour(15);
+            let dist: DateTime = conf._next(dt0)?.into();
+            let mut dt0_dist = dt0.clone();
+            dt0_dist.second = InnerSecond(15);
+            dt0_dist.minuter = InnerMinuter(15);
+            dt0_dist.hour = InnerHour(5);
+            dt0_dist.week_day = InnerWeekDay(3);
+            dt0_dist.month_day = InnerMonthDay(18);
+            dt0_dist.date = time::Date::from_calendar_date(2022, Month::May, 18)?;
+            assert_eq!(dist, dt0_dist);
+        }
+
+        let mut dt0 = DateTime {
+            date: time::Date::from_calendar_date(2022, Month::May, 20)?,
+            month_day: InnerMonthDay(20),
+            week_day: InnerWeekDay(5),
+            hour: InnerHour(15),
+            minuter: InnerMinuter(45),
+            second: InnerSecond(45),
+        };
+        {
+            let dist: DateTime = conf._next(dt0)?.into();
+            let mut dt0_dist = dt0.clone();
+            dt0_dist.week_day = InnerWeekDay(2);
+            dt0_dist.month_day = InnerMonthDay(24);
+            dt0_dist.second = InnerSecond(15);
+            dt0_dist.minuter = InnerMinuter(15);
+            dt0_dist.hour = InnerHour(5);
+            dt0_dist.date = time::Date::from_calendar_date(2022, Month::May, 24)?;
+            assert_eq!(dist, dt0_dist);
+        }
         Ok(())
     }
     #[test]
