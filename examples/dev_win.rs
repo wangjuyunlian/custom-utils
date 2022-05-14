@@ -1,4 +1,4 @@
-use custom_utils::r#mod::{Operator, WeekDays};
+use custom_utils::util_timer::{Operator, WeekDays};
 use custom_utils::*;
 
 #[tokio::main]
@@ -15,7 +15,7 @@ async fn main() -> anyhow::Result<()> {
     // let (year, month, day) = date.to_calendar_date();
     // let next_day = date.next_day();
 
-    let days = WeekDays::default_value(1)?.to_vec();
+    let days = WeekDays::default_value(WeekDay::W1).to_vec();
     println!("{:?}", days);
 
     if let Err(_e) = handle.await {}

@@ -8,7 +8,6 @@ use picky::x509::extension::KeyUsage;
 use picky::x509::name::{DirectoryName, GeneralName, NameAttr};
 use picky::x509::{certificate::CertType, csr::Csr, Extension, Extensions};
 use picky::{hash::HashAlgorithm, oids, signature::SignatureAlgorithm};
-use std::path::Path;
 #[ignore]
 #[test]
 fn test_tls() -> Result<()> {

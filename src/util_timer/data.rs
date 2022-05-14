@@ -23,37 +23,37 @@ pub enum WeekDay {
 #[derive(Copy, Clone)]
 #[repr(u32)]
 pub enum MonthDay {
-    M1 = 1,
-    M2,
-    M3,
-    M4,
-    M5,
-    M6,
-    M7,
-    M8,
-    M9,
-    M10,
-    M11,
-    M12,
-    M13,
-    M14,
-    M15,
-    M16,
-    M17,
-    M18,
-    M19,
-    M20,
-    M21,
-    M22,
-    M23,
-    M24,
-    M25,
-    M26,
-    M27,
-    M28,
-    M29,
-    M30,
-    M31,
+    D1 = 1,
+    D2,
+    D3,
+    D4,
+    D5,
+    D6,
+    D7,
+    D8,
+    D9,
+    D10,
+    D11,
+    D12,
+    D13,
+    D14,
+    D15,
+    D16,
+    D17,
+    D18,
+    D19,
+    D20,
+    D21,
+    D22,
+    D23,
+    D24,
+    D25,
+    D26,
+    D27,
+    D28,
+    D29,
+    D30,
+    D31,
 }
 #[derive(Copy, Clone)]
 #[repr(u32)]
@@ -224,6 +224,7 @@ pub(crate) struct InnerMinuter(pub(crate) u64);
 pub(crate) struct InnerSecond(pub(crate) u64);
 
 impl DateTime {
+    #[allow(dead_code)]
     pub(crate) fn default() -> anyhow::Result<Self> {
         Ok(OffsetDateTime::now_local()?.into())
     }

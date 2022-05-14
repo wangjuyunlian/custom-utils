@@ -45,6 +45,7 @@ tls = ["rustls-pemfile", "rustls-native-certs", "rustls"]
 tls-util = ["picky", "rsa", "chrono", "rand", "der-parser", "x509-parser"]
 logger = ["flexi_logger", "time"]
 daemon = ["libsystemd"]
+timer-util = ["time"]
 
 [[example]]
 name = "prod"
@@ -56,9 +57,16 @@ required-features = ["dev", "logger", "daemon"]
 name = "dev_unix"
 required-features = ["dev", "logger", "daemon"]
 
+[[example]]
+name = "timer"
+required-features = ["dev", "logger", "timer-util"]
+
 [[test]]
 name = "util_tls_util_print"
 required-features = ["tls-util"]
 [[test]]
 name = "util_tls_util"
 required-features = ["tls-util"]
+[[test]]
+name = "util_timer"
+required-features = ["timer-util"]

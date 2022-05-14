@@ -10,9 +10,8 @@ use picky::x509::date::UTCDate;
 use picky::x509::name::DirectoryName;
 use picky::x509::{Cert, Csr, KeyIdGenMethod};
 use rsa::pkcs1::{EncodeRsaPrivateKey, LineEnding};
-use rsa::pkcs8::{EncodePrivateKey, EncodePublicKey};
+use rsa::pkcs8::EncodePublicKey;
 use rsa::{RsaPrivateKey, RsaPublicKey};
-use std::error::Error;
 use std::path::Path;
 
 // pub fn gen_rsa_pkcs8_key_pem() -> Result<(String, String)> {

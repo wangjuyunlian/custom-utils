@@ -1,7 +1,8 @@
 pub mod data;
 
-use crate::util_datetime::data::{AsData, DateTime};
+use crate::util_timer::data::{AsData, DateTime};
 use anyhow::{bail, Result};
+use log::trace;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Add, AddAssign, BitAnd, BitOr, BitOrAssign, Bound, RangeBounds, Shl, Sub};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
@@ -358,8 +359,15 @@ impl DayHourMinuterSecondConf {
             week_days: Some(week_days),
         }
     }
-    pub fn next(&self) -> Result<OffsetDateTime> {
-        self._next(DateTime::default()?)
+    pub fn next(&self) -> Result<u64> {
+        let now_local = OffsetDateTime::now_local()?;
+        let datetime = now_local.clone().into();
+        let offset = now_local.clone().offset();
+        let next_local = self._next(datetime)?;
+        trace!("now: {:?}, next: {:?}", now_local, next_local);
+        Ok((next_local.unix_timestamp()
+            - now_local.unix_timestamp()
+            - offset.whole_seconds() as i64) as u64)
     }
     fn _next(&self, datetime: DateTime) -> Result<OffsetDateTime> {
         let day_self = self
@@ -419,6 +427,13 @@ impl DayHourMinuterSecondConf {
             hour_possible = Possible::Min;
             day_possible = Possible::Next;
         }
+        trace!(
+            "{:?} {:?} {:?} {:?}",
+            day_possible,
+            hour_possible,
+            minuter_possible,
+            second_possible
+        );
         let time_next = time::Time::from_hms(hour as u8, minuter as u8, second as u8)?;
         let date_month = if let Some(month_days) = &self.month_days {
             let (month_day, month_day_recount) =
@@ -432,9 +447,8 @@ impl DayHourMinuterSecondConf {
                 // this month don't has the day
                 match date.replace_day(month_day as u8) {
                     Ok(day) => Some(day),
-                    Err(e) => {
-                        let (month_day, month_day_recount) =
-                            get_val(Possible::Min, month_days, datetime.month_day);
+                    Err(_) => {
+                        let month_day = month_days.min_val();
                         date = date.replace_month(date.clone().month().next())?;
                         Some(date.replace_day(month_day as u8)?)
                     }
@@ -495,7 +509,7 @@ pub fn get_val<D: Operator>(
     (data, re_count)
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Possible {
     Min,
     Oneself,
@@ -559,12 +573,12 @@ impl Debug for WeekDays {
 }
 #[cfg(test)]
 mod test {
-    use super::{DayConfBuilder, Hours, Minuters, MonthDays, Operator, Seconds, WeekDays};
-    use crate::util_datetime::data::{
+    use super::{Hours, Minuters, MonthDays, Operator, Seconds, WeekDays};
+    use crate::util_timer::data::{
         DateTime, Hour, InnerHour, InnerMinuter, InnerMonthDay, InnerSecond, InnerWeekDay, Minuter,
         MonthDay, Second, WeekDay,
     };
-    use crate::util_datetime::{get_val, DayHourMinuterSecondConf, Possible};
+    use crate::util_timer::{get_val, DayHourMinuterSecondConf, Possible};
     use anyhow::Result;
     use time::Month;
 
@@ -595,49 +609,17 @@ mod test {
 
         Ok(())
     }
-    #[test]
-    fn test_contain() -> Result<()> {
-        let all_seconds = Seconds::default_all();
-        assert!(all_seconds.contain(Second::S0));
-        assert!(all_seconds.contain(Second::S30));
-        assert!(all_seconds.contain(Second::S59));
-        let some_seconds = Seconds::default_range(Second::S1..Second::S30)?
-            .add_range(Second::S31..=Second::S58)?;
-        assert!(!some_seconds.contain(Second::S59));
-        assert!(!some_seconds.contain(Second::S0));
-        assert!(!some_seconds.contain(Second::S30));
 
-        let all_hours = Hours::default_all();
-        assert!(all_hours.contain(Hour::H10));
-        assert!(all_hours.contain(Hour::H0));
-        assert!(all_hours.contain(Hour::H23));
-        let some_hours =
-            Hours::default_range(Hour::H1..Hour::H10)?.add_range(Hour::H11..=Hour::H22)?;
-        assert!(!some_hours.contain(Hour::H10));
-        assert!(!some_hours.contain(Hour::H0));
-        assert!(!some_hours.contain(Hour::H23));
-
-        let all_weeks = WeekDays::default_all();
-        assert!(all_weeks.contain(WeekDay::W3));
-        assert!(all_weeks.contain(WeekDay::W1));
-        assert!(all_weeks.contain(WeekDay::W7));
-        let some_weeks = WeekDays::default_range(WeekDay::W2..WeekDay::W3)?
-            .add_range(WeekDay::W4..=WeekDay::W6)?;
-        assert!(!some_weeks.contain(WeekDay::W3));
-        assert!(!some_weeks.contain(WeekDay::W1));
-        assert!(!some_weeks.contain(WeekDay::W7));
-        Ok(())
-    }
     #[test]
-    fn test() -> anyhow::Result<()> {
+    fn test() -> Result<()> {
         let conf = DayHourMinuterSecondConf::default_week_days(WeekDays::default_array(&[
             WeekDay::W5,
             WeekDay::W3,
         ]))
         .conf_month_days(MonthDays::default_array(&[
-            MonthDay::M5,
-            MonthDay::M15,
-            MonthDay::M24,
+            MonthDay::D5,
+            MonthDay::D15,
+            MonthDay::D24,
         ]))
         .build_with_hours(Hours::default_array(&[Hour::H5, Hour::H10, Hour::H15]))
         .build_with_minuter_builder(Minuters::default_array(&[
@@ -702,7 +684,7 @@ mod test {
             assert_eq!(dist, dt0_dist);
         }
         // -------------------------------
-        let mut dt0 = DateTime {
+        let dt0 = DateTime {
             date: time::Date::from_calendar_date(2022, Month::May, 20)?,
             month_day: InnerMonthDay(20),
             week_day: InnerWeekDay(5),
@@ -727,9 +709,9 @@ mod test {
             WeekDay::W3,
         ]))
         .conf_month_days(MonthDays::default_array(&[
-            MonthDay::M5,
-            MonthDay::M15,
-            MonthDay::M31,
+            MonthDay::D5,
+            MonthDay::D15,
+            MonthDay::D31,
         ]))
         .build_with_hours(Hours::default_array(&[Hour::H5, Hour::H10, Hour::H15]))
         .build_with_minuter_builder(Minuters::default_array(&[
@@ -742,7 +724,7 @@ mod test {
             Second::S30,
             Second::S45,
         ]));
-        let mut dt0 = DateTime {
+        let dt0 = DateTime {
             date: time::Date::from_calendar_date(2022, Month::April, 29)?,
             month_day: InnerMonthDay(29),
             week_day: InnerWeekDay(5),
@@ -761,31 +743,6 @@ mod test {
             dt0_dist.date = time::Date::from_calendar_date(2022, Month::May, 4)?;
             assert_eq!(dist, dt0_dist);
         }
-        Ok(())
-    }
-    #[test]
-    fn test_week_days() -> anyhow::Result<()> {
-        let wds = WeekDays::default_value(WeekDay::W1).add_range(WeekDay::W3..=WeekDay::W5)?;
-        let days = wds.to_vec();
-        assert_eq!(vec![1, 3, 4, 5], days);
-        // assert_eq!(1, wds.find(WeekDay::W1, true));
-        // assert_eq!(3, wds.find(WeekDay::W1, false));
-        // assert_eq!(1, wds.find(WeekDay::W6, false));
-
-        let wds = WeekDays::default_value(WeekDay::W1).add_array(&[WeekDay::W3, WeekDay::W5]);
-        let days = wds.to_vec();
-        assert_eq!(vec![1, 3, 5], days);
-        // assert_eq!(1, wds.find(WeekDay::W1, true));
-        // assert_eq!(3, wds.find(WeekDay::W1, false));
-        // assert_eq!(1, wds.find(WeekDay::W6, false));
-
-        let days = WeekDays::default_all().to_vec();
-        assert_eq!(vec![1, 2, 3, 4, 5, 6, 7], days);
-        assert!(WeekDays::default_range(WeekDay::W5..WeekDay::W5).is_err());
-        assert!(WeekDays::default_range(WeekDay::W5..WeekDay::W1).is_err());
-        let days = WeekDays::default_range(WeekDay::W5..WeekDay::W6)?.to_vec();
-        assert_eq!(vec![5], days);
-
         Ok(())
     }
 }
