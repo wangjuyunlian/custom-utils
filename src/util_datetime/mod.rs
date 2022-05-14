@@ -428,8 +428,17 @@ impl DayHourMinuterSecondConf {
                 date = date.replace_month(date.clone().month().next())?;
                 Some(date.replace_day(month_day as u8)?)
             } else {
-                let date = datetime.date.clone();
-                Some(date.replace_day(month_day as u8)?)
+                let mut date = datetime.date.clone();
+                // this month don't has the day
+                match date.replace_day(month_day as u8) {
+                    Ok(day) => Some(day),
+                    Err(e) => {
+                        let (month_day, month_day_recount) =
+                            get_val(Possible::Min, month_days, datetime.month_day);
+                        date = date.replace_month(date.clone().month().next())?;
+                        Some(date.replace_day(month_day as u8)?)
+                    }
+                }
             }
         } else {
             None
@@ -692,7 +701,7 @@ mod test {
             dt0_dist.date = time::Date::from_calendar_date(2022, Month::May, 18)?;
             assert_eq!(dist, dt0_dist);
         }
-
+        // -------------------------------
         let mut dt0 = DateTime {
             date: time::Date::from_calendar_date(2022, Month::May, 20)?,
             month_day: InnerMonthDay(20),
@@ -710,6 +719,46 @@ mod test {
             dt0_dist.minuter = InnerMinuter(15);
             dt0_dist.hour = InnerHour(5);
             dt0_dist.date = time::Date::from_calendar_date(2022, Month::May, 24)?;
+            assert_eq!(dist, dt0_dist);
+        }
+        // -------------------------------
+        let conf = DayHourMinuterSecondConf::default_week_days(WeekDays::default_array(&[
+            WeekDay::W5,
+            WeekDay::W3,
+        ]))
+        .conf_month_days(MonthDays::default_array(&[
+            MonthDay::M5,
+            MonthDay::M15,
+            MonthDay::M31,
+        ]))
+        .build_with_hours(Hours::default_array(&[Hour::H5, Hour::H10, Hour::H15]))
+        .build_with_minuter_builder(Minuters::default_array(&[
+            Minuter::M15,
+            Minuter::M30,
+            Minuter::M45,
+        ]))
+        .build_with_second_builder(Seconds::default_array(&[
+            Second::S15,
+            Second::S30,
+            Second::S45,
+        ]));
+        let mut dt0 = DateTime {
+            date: time::Date::from_calendar_date(2022, Month::April, 29)?,
+            month_day: InnerMonthDay(29),
+            week_day: InnerWeekDay(5),
+            hour: InnerHour(15),
+            minuter: InnerMinuter(45),
+            second: InnerSecond(45),
+        };
+        {
+            let dist: DateTime = conf._next(dt0)?.into();
+            let mut dt0_dist = dt0.clone();
+            dt0_dist.week_day = InnerWeekDay(3);
+            dt0_dist.month_day = InnerMonthDay(4);
+            dt0_dist.second = InnerSecond(15);
+            dt0_dist.minuter = InnerMinuter(15);
+            dt0_dist.hour = InnerHour(5);
+            dt0_dist.date = time::Date::from_calendar_date(2022, Month::May, 4)?;
             assert_eq!(dist, dt0_dist);
         }
         Ok(())
