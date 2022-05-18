@@ -1,4 +1,4 @@
-use custom_utils::*;
+use custom_utils::logger::*;
 
 fn main() {
     let _logger = logger_default_debug("prod").unwrap();

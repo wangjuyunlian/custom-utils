@@ -1,4 +1,6 @@
+use custom_utils::logger::logger_default_debug;
 use custom_utils::*;
+use log::{debug, info};
 
 #[tokio::main]
 async fn main() {

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use custom_utils::{Hour, Hours, Operator, Second, Seconds, WeekDay, WeekDays};
+use custom_utils::timer::{Hour, Hours, Operator, Second, Seconds, WeekDay, WeekDays};
 
 #[test]
 fn test_week_days() -> Result<()> {

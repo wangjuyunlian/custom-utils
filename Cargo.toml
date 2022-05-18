@@ -1,6 +1,6 @@
 [package]
 name = "custom-utils"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 description = "Provide customized tools based on features"
 repository = "https://github.com/jm-observer/custom-utils.git"
@@ -55,9 +55,11 @@ name = "prod"
 required-features = ["prod", "logger", "daemon"]
 [[example]]
 name = "dev_win"
+path = "examples/dev.rs"
 required-features = ["dev", "logger", "daemon"]
 [[example]]
 name = "dev_unix"
+path = "examples/dev.rs"
 required-features = ["dev", "logger", "daemon"]
 
 [[example]]
@@ -72,4 +74,4 @@ name = "util_tls_util"
 required-features = ["tls-util"]
 [[test]]
 name = "util_timer"
-required-features = ["timer-util"]
+required-features = ["timer"]

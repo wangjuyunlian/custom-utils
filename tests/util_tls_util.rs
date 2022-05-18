@@ -1,5 +1,5 @@
 use anyhow::Result;
-use custom_utils::{
+use custom_utils::tls_util::{
     gen_ca_cert, gen_cert_by_ca, gen_root_cert, gen_rsa_key_pem_and_file, gen_valid_date,
 };
 use picky::x509::csr::Attribute;

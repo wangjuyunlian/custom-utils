@@ -10,18 +10,28 @@ mod util_tls;
 mod util_tls_util;
 
 #[cfg(feature = "logger")]
-pub use log::{debug, error, info, trace};
-#[cfg(feature = "logger")]
-pub use util_log::{logger_default, logger_default_debug, logger_default_info};
+pub mod logger {
+    pub use crate::util_log::{logger_default, logger_default_debug, logger_default_info};
+    pub use log::{debug, error, info, trace};
+}
 
 #[cfg(feature = "daemon")]
-pub use util_daemon::daemon;
+pub mod daemon {
+    pub use crate::util_daemon::daemon;
+}
+
 #[cfg(feature = "tls")]
-pub use util_tls::*;
+pub mod tls {
+    pub use crate::util_tls::*;
+}
+
 #[cfg(feature = "tls-util")]
-pub use util_tls_util::print::*;
-#[cfg(feature = "tls-util")]
-pub use util_tls_util::*;
+pub mod tls_util {
+    pub use crate::util_tls_util::print::*;
+    pub use crate::util_tls_util::*;
+}
 
 #[cfg(feature = "timer")]
-pub use timer_util::*;
+pub mod timer {
+    pub use timer_util::*;
+}
