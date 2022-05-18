@@ -4,8 +4,6 @@ extern crate core;
 mod util_daemon;
 #[cfg(feature = "logger")]
 mod util_log;
-#[cfg(feature = "timer-util")]
-pub mod util_timer;
 #[cfg(feature = "tls")]
 mod util_tls;
 #[cfg(feature = "tls-util")]
@@ -25,14 +23,5 @@ pub use util_tls_util::print::*;
 #[cfg(feature = "tls-util")]
 pub use util_tls_util::*;
 
-#[cfg(feature = "timer-util")]
-pub use util_timer::{
-    data::{
-        Hour::{self, *},
-        Minuter::{self, *},
-        MonthDay::{self, *},
-        Second::{self, *},
-        WeekDay::{self, *},
-    },
-    DayHourMinuterSecondConf, Hours, Minuters, MonthDays, Operator, Seconds, WeekDays,
-};
+#[cfg(feature = "timer")]
+pub use timer_util::*;

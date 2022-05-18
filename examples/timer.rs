@@ -7,8 +7,8 @@ async fn main() -> anyhow::Result<()> {
     let _log = logger_default_debug("timer")?;
     let conf = DayHourMinuterSecondConf::default_week_days(WeekDays::default_value(W6))
         .build_with_hours(Hours::default_all())
-        .build_with_minuter_builder(Minuters::default_array(&[M0, M10, M20, M30, M40, M50]))
-        .build_with_second_builder(Seconds::default_array(&[S0, S30]));
+        .build_with_minuter(Minuters::default_array(&[M0, M10, M20, M30, M40, M50]))
+        .build_with_second(Seconds::default_array(&[S0, S30]));
 
     // let next_seconds = conf.next()?;
 

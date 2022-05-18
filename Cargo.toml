@@ -1,6 +1,6 @@
 [package]
 name = "custom-utils"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "Provide customized tools based on features"
 repository = "https://github.com/jm-observer/custom-utils.git"
@@ -30,9 +30,12 @@ x509-parser = { version ="0.13", features=["validate", "verify"],optional = true
 rustls-pemfile = {version ="1", optional = true}
 rustls-native-certs = {version ="0.6", optional = true}
 rustls = {version ="0.20", optional = true}
+# -----------------------------
+timer-util = {version ="0.1.0", optional = true}
 # ------------- daemon start----------------------
 [target.'cfg(unix)'.dependencies]
 libsystemd = {version ="0.5.0", optional = true}
+
 
 [dev-dependencies]
 picky = { version = "6.3", features = ["chrono_conversion"]}
@@ -45,7 +48,7 @@ tls = ["rustls-pemfile", "rustls-native-certs", "rustls"]
 tls-util = ["picky", "rsa", "chrono", "rand", "der-parser", "x509-parser"]
 logger = ["flexi_logger", "time"]
 daemon = ["libsystemd"]
-timer-util = ["time"]
+timer = ["timer-util"]
 
 [[example]]
 name = "prod"
@@ -59,7 +62,7 @@ required-features = ["dev", "logger", "daemon"]
 
 [[example]]
 name = "timer"
-required-features = ["dev", "logger", "timer-util"]
+required-features = ["dev", "logger", "timer"]
 
 [[test]]
 name = "util_tls_util_print"
