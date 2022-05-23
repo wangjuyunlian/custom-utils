@@ -57,12 +57,15 @@ pub fn logger_default_target(
 }
 #[cfg(feature = "prod")]
 fn init_target(logger: Logger, app: &str) -> Logger {
-    logger.log_to_file(default_file_spec(app)).rotate(
-        // 10m
-        Criterion::AgeOrSize(Age::Day, 10_000_000),
-        Naming::Numbers,
-        Cleanup::KeepLogFiles(10),
-    )
+    logger
+        .log_to_file(default_file_spec(app))
+        .rotate(
+            // 10m
+            Criterion::AgeOrSize(Age::Day, 10_000_000),
+            Naming::Numbers,
+            Cleanup::KeepLogFiles(10),
+        )
+        .o_append(true)
 }
 
 #[cfg(not(feature = "prod"))]
