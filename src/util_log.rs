@@ -1,13 +1,18 @@
 use anyhow::Result;
-use flexi_logger::LevelFilter::{Debug, Info};
 #[cfg(feature = "prod")]
-use flexi_logger::{Age, Cleanup, Criterion, FileSpec, Naming};
+use flexi_logger::Age;
+use flexi_logger::{Cleanup, Criterion, FileSpec, Naming};
 use flexi_logger::{
-    DeferredNow, FlexiLoggerError, LevelFilter, Logger, LoggerHandle, Record, WriteMode,
+    DeferredNow, FormatFunction, LevelFilter, LogSpecBuilder, Logger, LoggerHandle, Record,
+    WriteMode,
 };
-use std::thread;
+use std::path::Path;
 #[cfg(feature = "prod")]
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
+#[cfg(feature = "prod")]
+use std::str::FromStr;
+use std::thread;
+// #[cfg(feature = "prod")]
 use time::format_description::FormatItem;
 use time::macros::format_description;
 
@@ -31,59 +36,118 @@ fn with_thread(
     )
 }
 
-pub fn logger_default_debug(app: &str) -> std::result::Result<LoggerHandle, FlexiLoggerError> {
-    logger_default(app, Debug)
+pub struct LoggerBuilder {
+    log_spec_builder: LogSpecBuilder,
 }
-pub fn logger_default_info(app: &str) -> std::result::Result<LoggerHandle, FlexiLoggerError> {
-    logger_default(app, Info)
+impl LoggerBuilder {
+    pub fn default(level: LevelFilter) -> Self {
+        let mut log_spec_builder = LogSpecBuilder::new();
+        log_spec_builder.default(level);
+        Self { log_spec_builder }
+    }
+    pub fn module<M: AsRef<str>>(mut self, module_name: M, lf: LevelFilter) -> Self {
+        self.log_spec_builder.module(module_name, lf);
+        self
+    }
+    // pub fn new(log_spec_builder: LogSpecBuilder) -> Self {
+    //     Self { log_spec_builder }
+    // }
+    pub fn build_default(self) -> LoggerBuilder2 {
+        LoggerBuilder2 {
+            logger: Logger::with(self.log_spec_builder.build())
+                .format(with_thread)
+                .write_mode(WriteMode::Direct),
+        }
+    }
+    pub fn build_with(self, format: FormatFunction, write_mode: WriteMode) -> LoggerBuilder2 {
+        LoggerBuilder2 {
+            logger: Logger::with(self.log_spec_builder.build())
+                .format(format)
+                .write_mode(write_mode),
+        }
+    }
 }
-pub fn logger_default(
-    app: &str,
-    level: LevelFilter,
-) -> std::result::Result<LoggerHandle, FlexiLoggerError> {
-    logger_default_target(app, level, init_target)
+pub struct LoggerBuilder2 {
+    logger: Logger,
 }
-pub fn logger_default_target(
-    app: &str,
-    level: LevelFilter,
-    target_fn: fn(Logger, &str) -> Logger,
-) -> std::result::Result<LoggerHandle, FlexiLoggerError> {
-    let log_spec = flexi_logger::LogSpecBuilder::new().default(level).build();
-    // httplog_2022-04-28_17-39-27_rCURRENT.log
-    let a = Logger::with(log_spec)
-        .format(with_thread)
-        .write_mode(WriteMode::Direct);
-    target_fn(a, app).start()
+pub struct LoggerBuilder3 {
+    logger: Logger,
+}
+impl LoggerBuilder3 {
+    pub fn start(self) -> LoggerHandle {
+        self.logger.start().unwrap()
+    }
+    pub fn start_with_specfile(self, p: impl AsRef<Path>) -> LoggerHandle {
+        self.logger.start_with_specfile(p).unwrap()
+    }
+}
+impl LoggerBuilder2 {
+    pub fn log_to_stdout(self) -> LoggerBuilder3 {
+        LoggerBuilder3 {
+            logger: self.logger.log_to_stdout(),
+        }
+    }
+    pub fn log_to_file(
+        self,
+        fs: FileSpec,
+        criterion: Criterion,
+        naming: Naming,
+        cleanup: Cleanup,
+        append: bool,
+    ) -> LoggerBuilder3 {
+        LoggerBuilder3 {
+            logger: self
+                .logger
+                .log_to_file(fs)
+                .o_append(append)
+                .rotate(criterion, naming, cleanup),
+        }
+    }
+}
+/// 控制台输出日志
+pub fn logger_debug_default() -> LoggerHandle {
+    LoggerBuilder::default(LevelFilter::Debug)
+        .build_default()
+        .log_to_stdout()
+        .start()
+}
+
+/// 根据feature来确定日志输出
+///     dev：控制台输出
+///     prod：在目录/var/local/log/{app}输出日志；
+///         每天或大小达到10m更换日志文件；
+///         维持10个日志文件；
+///         生成/var/local/etc/{app}/logspecification.toml的动态配置文件
+pub fn logger_debug_feature(app: &str) -> LoggerHandle {
+    _logger_debug_feature(app)
+}
+#[cfg(feature = "dev")]
+fn _logger_debug_feature(_app: &str) -> LoggerHandle {
+    logger_debug_default()
 }
 #[cfg(feature = "prod")]
-fn init_target(logger: Logger, app: &str) -> Logger {
-    logger
-        .log_to_file(default_file_spec(app))
-        .rotate(
-            // 10m
+fn _logger_debug_feature(app: &str) -> LoggerHandle {
+    let path = PathBuf::from_str("/var/local/etc/")
+        .unwrap()
+        .join(app)
+        .join("logspecification.toml");
+
+    let fs_path = PathBuf::from_str("/var/local/log").unwrap().join(app);
+    let fs = FileSpec::default()
+        .directory(fs_path)
+        .basename(app)
+        .suffix("log")
+        // 若为true，则会覆盖rotate中的数字、keep^
+        .use_timestamp(false);
+
+    LoggerBuilder::default(LevelFilter::Debug)
+        .build_default()
+        .log_to_file(
+            fs,
             Criterion::AgeOrSize(Age::Day, 10_000_000),
             Naming::Numbers,
             Cleanup::KeepLogFiles(10),
+            true,
         )
-        .o_append(true)
-}
-
-#[cfg(not(feature = "prod"))]
-fn init_target(logger: Logger, _app: &str) -> Logger {
-    logger.log_to_stdout()
-}
-
-// #[cfg(feature = "prod")]
-// const LOG_PATH: &str = "/var/local/log";
-// #[cfg(not(feature = "prod"))]
-// const LOG_PATH: &str = "./log";
-#[cfg(feature = "prod")]
-fn default_file_spec(app: &str) -> FileSpec {
-    let path = PathBuf::from_str("/var/local/log").unwrap().join(app);
-    FileSpec::default()
-        .directory(path)
-        .basename(app)
-        .suffix("log")
-        // 若为true，则会覆盖rotate种的数字、keep^
-        .use_timestamp(false)
+        .start_with_specfile(path)
 }
