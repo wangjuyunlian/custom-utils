@@ -121,7 +121,7 @@ pub fn logger_debug_default() -> LoggerHandle {
 pub fn logger_debug_feature(app: &str) -> LoggerHandle {
     _logger_debug_feature(app)
 }
-#[cfg(feature = "dev")]
+#[cfg(not(feature = "prod"))]
 fn _logger_debug_feature(_app: &str) -> LoggerHandle {
     logger_debug_default()
 }
