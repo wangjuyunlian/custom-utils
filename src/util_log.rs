@@ -1,5 +1,4 @@
 use anyhow::Result;
-#[cfg(feature = "prod")]
 use flexi_logger::Age;
 use flexi_logger::{Cleanup, Criterion, FileSpec, Naming};
 use flexi_logger::{
@@ -7,9 +6,7 @@ use flexi_logger::{
     WriteMode,
 };
 use std::path::Path;
-#[cfg(feature = "prod")]
 use std::path::PathBuf;
-#[cfg(feature = "prod")]
 use std::str::FromStr;
 use std::thread;
 // #[cfg(feature = "prod")]
@@ -80,12 +77,34 @@ impl LoggerBuilder3 {
     pub fn start_with_specfile(self, p: impl AsRef<Path>) -> LoggerHandle {
         self.logger.start_with_specfile(p).unwrap()
     }
+    pub fn start_with_specfile_default(self, app: &str) -> LoggerHandle {
+        let path = PathBuf::from_str("/var/local/etc/")
+            .unwrap()
+            .join(app)
+            .join("logspecification.toml");
+        self.logger.start_with_specfile(path).unwrap()
+    }
 }
 impl LoggerBuilder2 {
     pub fn log_to_stdout(self) -> LoggerBuilder3 {
         LoggerBuilder3 {
             logger: self.logger.log_to_stdout(),
         }
+    }
+    pub fn log_to_file_default(self, app: &str) -> LoggerBuilder3 {
+        let fs_path = PathBuf::from_str("/var/local/log").unwrap().join(app);
+        let fs = FileSpec::default()
+            .directory(fs_path)
+            .basename(app)
+            .suffix("log");
+        // 若为true，则会覆盖rotate中的数字、keep^
+        self.log_to_file(
+            fs,
+            Criterion::AgeOrSize(Age::Day, 10_000_000),
+            Naming::Numbers,
+            Cleanup::KeepLogFiles(10),
+            true,
+        )
     }
     pub fn log_to_file(
         self,
