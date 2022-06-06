@@ -1,6 +1,6 @@
 [package]
 name = "custom-utils"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 description = "Provide customized tools based on features"
 repository = "https://github.com/jm-observer/custom-utils.git"
@@ -33,7 +33,7 @@ rustls = {version ="0.20", optional = true}
 # -----------------------------
 timer-util = {version ="0", optional = true}
 # ------------- daemon start----------------------
-[target.'cfg(unix)'.dependencies]
+[target.'cfg(target_os="linux")'.dependencies]
 libsystemd = {version ="0.5.0", optional = true}
 
 
