@@ -123,50 +123,103 @@ impl LoggerBuilder2 {
         }
     }
 }
+
+pub struct LoggerFeatureBuilder {
+    log_spec_builder: LogSpecBuilder,
+}
+impl LoggerFeatureBuilder {
+    pub fn default(level: LevelFilter) -> Self {
+        let mut log_spec_builder = LogSpecBuilder::new();
+        log_spec_builder.default(level);
+        Self { log_spec_builder }
+    }
+    pub fn module<M: AsRef<str>>(mut self, module_name: M, lf: LevelFilter) -> Self {
+        self.log_spec_builder.module(module_name, lf);
+        self
+    }
+    #[cfg(feature = "prod")]
+    pub fn build(self, app: &str) -> LoggerHandle {
+        LoggerBuilder2 {
+            logger: Logger::with(self.log_spec_builder.build())
+                .format(with_thread)
+                .write_mode(WriteMode::Direct),
+        }
+        .log_to_file_default(app)
+        .start_with_specfile_default(app)
+    }
+    #[cfg(not(feature = "prod"))]
+    pub fn build(self, _app: &str) -> LoggerHandle {
+        LoggerBuilder2 {
+            logger: Logger::with(self.log_spec_builder.build())
+                .format(with_thread)
+                .write_mode(WriteMode::Direct),
+        }
+        .log_to_stdout()
+        .start()
+    }
+}
 /// 控制台输出日志
-pub fn logger_debug_default() -> LoggerHandle {
-    LoggerBuilder::default(LevelFilter::Debug)
+// pub fn logger_debug_default() -> LoggerHandle {
+//     LoggerBuilder::default(LevelFilter::Debug)
+//         .build_default()
+//         .log_to_stdout()
+//         .start()
+// }
+
+/// 简单，纯粹想输出日志而已。适用于临时
+/// 控制台输出日志
+pub fn logger_stdout(lever: LevelFilter) -> LoggerHandle {
+    LoggerBuilder::default(lever)
         .build_default()
         .log_to_stdout()
         .start()
 }
-
+pub fn logger_stdout_debug() -> LoggerHandle {
+    logger_stdout(LevelFilter::Debug)
+}
 /// 根据feature来确定日志输出
 ///     dev：控制台输出
 ///     prod：在目录/var/local/log/{app}输出日志；
 ///         每天或大小达到10m更换日志文件；
 ///         维持10个日志文件；
 ///         生成/var/local/etc/{app}/logspecification.toml的动态配置文件
-pub fn logger_debug_feature(app: &str) -> LoggerHandle {
-    _logger_debug_feature(app)
+pub fn logger_feature(lever: LevelFilter) -> LoggerFeatureBuilder {
+    LoggerFeatureBuilder::default(lever)
 }
-#[cfg(not(feature = "prod"))]
-fn _logger_debug_feature(_app: &str) -> LoggerHandle {
-    logger_debug_default()
-}
-#[cfg(feature = "prod")]
-fn _logger_debug_feature(app: &str) -> LoggerHandle {
-    let path = PathBuf::from_str("/var/local/etc/")
-        .unwrap()
-        .join(app)
-        .join("logspecification.toml");
+// pub fn logger_feature_without(lever: LevelFilter) -> LoggerHandle {
+//     LoggerFeatureBuilder::default(lever).build("app")
+// }
 
-    let fs_path = PathBuf::from_str("/var/local/log").unwrap().join(app);
-    let fs = FileSpec::default()
-        .directory(fs_path)
-        .basename(app)
-        .suffix("log")
-        // 若为true，则会覆盖rotate中的数字、keep^
-        .use_timestamp(false);
-
-    LoggerBuilder::default(LevelFilter::Debug)
-        .build_default()
-        .log_to_file(
-            fs,
-            Criterion::AgeOrSize(Age::Day, 10_000_000),
-            Naming::Numbers,
-            Cleanup::KeepLogFiles(10),
-            true,
-        )
-        .start_with_specfile(path)
-}
+// pub fn logger_debug_feature(app: &str) -> LoggerHandle {
+//     _logger_debug_feature(app)
+// }
+// #[cfg(not(feature = "prod"))]
+// fn _logger_debug_feature(_app: &str) -> LoggerHandle {
+//     logger_debug_default()
+// }
+// #[cfg(feature = "prod")]
+// fn _logger_debug_feature(app: &str) -> LoggerHandle {
+//     let path = PathBuf::from_str("/var/local/etc/")
+//         .unwrap()
+//         .join(app)
+//         .join("logspecification.toml");
+//
+//     let fs_path = PathBuf::from_str("/var/local/log").unwrap().join(app);
+//     let fs = FileSpec::default()
+//         .directory(fs_path)
+//         .basename(app)
+//         .suffix("log")
+//         // 若为true，则会覆盖rotate中的数字、keep^
+//         .use_timestamp(false);
+//
+//     LoggerBuilder::default(LevelFilter::Debug)
+//         .build_default()
+//         .log_to_file(
+//             fs,
+//             Criterion::AgeOrSize(Age::Day, 10_000_000),
+//             Naming::Numbers,
+//             Cleanup::KeepLogFiles(10),
+//             true,
+//         )
+//         .start_with_specfile(path)
+// }

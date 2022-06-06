@@ -11,7 +11,9 @@ mod util_tls_util;
 
 #[cfg(feature = "logger")]
 pub mod logger {
-    pub use crate::util_log::{logger_debug_default, logger_debug_feature, LoggerBuilder};
+    pub use crate::util_log::{
+        logger_feature, logger_stdout, logger_stdout_debug, LoggerBuilder, LoggerFeatureBuilder,
+    };
     pub use log::{debug, error, info, trace};
 }
 
