@@ -46,9 +46,6 @@ impl LoggerBuilder {
         self.log_spec_builder.module(module_name, lf);
         self
     }
-    // pub fn new(log_spec_builder: LogSpecBuilder) -> Self {
-    //     Self { log_spec_builder }
-    // }
     pub fn build_default(self) -> LoggerBuilder2 {
         LoggerBuilder2 {
             logger: Logger::with(self.log_spec_builder.build())
@@ -73,6 +70,9 @@ pub struct LoggerBuilder3 {
 impl LoggerBuilder3 {
     pub fn start(self) -> LoggerHandle {
         self.logger.start().unwrap()
+    }
+    pub fn _start(self) -> Result<LoggerHandle> {
+        Ok(self.logger.start()?)
     }
     pub fn start_with_specfile(self, p: impl AsRef<Path>) -> LoggerHandle {
         self.logger.start_with_specfile(p).unwrap()
@@ -158,7 +158,7 @@ impl LoggerFeatureBuilder {
         .start()
     }
 }
-/// 控制台输出日志
+// 控制台输出日志
 // pub fn logger_debug_default() -> LoggerHandle {
 //     LoggerBuilder::default(LevelFilter::Debug)
 //         .build_default()
@@ -166,26 +166,6 @@ impl LoggerFeatureBuilder {
 //         .start()
 // }
 
-/// 简单，纯粹想输出日志而已。适用于临时
-/// 控制台输出日志
-pub fn logger_stdout(lever: LevelFilter) -> LoggerHandle {
-    LoggerBuilder::default(lever)
-        .build_default()
-        .log_to_stdout()
-        .start()
-}
-pub fn logger_stdout_debug() -> LoggerHandle {
-    logger_stdout(LevelFilter::Debug)
-}
-/// 根据feature来确定日志输出
-///     dev：控制台输出
-///     prod：在目录/var/local/log/{app}输出日志；
-///         每天或大小达到10m更换日志文件；
-///         维持10个日志文件；
-///         生成/var/local/etc/{app}/logspecification.toml的动态配置文件
-pub fn logger_feature(lever: LevelFilter) -> LoggerFeatureBuilder {
-    LoggerFeatureBuilder::default(lever)
-}
 // pub fn logger_feature_without(lever: LevelFilter) -> LoggerHandle {
 //     LoggerFeatureBuilder::default(lever).build("app")
 // }

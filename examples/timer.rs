@@ -1,11 +1,11 @@
-use custom_utils::logger::logger_debug_default;
+use custom_utils::logger::logger_stdout_debug;
 use custom_utils::timer::*;
 use std::time::Duration;
 use time::OffsetDateTime;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let _log = logger_debug_default();
+    logger_stdout_debug();
     let conf = DayHourMinuterSecondConf::default_week_days(WeekDays::default_value(W6))
         .build_with_hours(Hours::default_all())
         .build_with_minuter(Minuters::default_array(&[M0, M10, M20, M30, M40, M50]))

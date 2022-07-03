@@ -3,7 +3,7 @@ extern crate core;
 #[cfg(feature = "daemon")]
 mod util_daemon;
 #[cfg(feature = "logger")]
-mod util_log;
+mod util_logger;
 #[cfg(feature = "tls")]
 mod util_tls;
 #[cfg(feature = "tls-util")]
@@ -11,8 +11,8 @@ mod util_tls_util;
 
 #[cfg(feature = "logger")]
 pub mod logger {
-    pub use crate::util_log::{
-        logger_feature, logger_stdout, logger_stdout_debug, LoggerBuilder, LoggerFeatureBuilder,
+    pub use crate::util_logger::{
+        custom_build, logger_feature, logger_stdout, logger_stdout_debug,
     };
     pub use log::{debug, error, info, trace};
 }

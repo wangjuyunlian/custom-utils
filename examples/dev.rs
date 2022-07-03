@@ -10,8 +10,13 @@ async fn main() {
     let handle = daemon();
     if let Err(_e) = handle.await {}
 
-    custom_utils::logger::LoggerBuilder::default(Debug)
+    custom_utils::logger::logger_feature(Debug)
+        .module("custom_utils", Debug)
+        .build("my-app");
+
+    custom_utils::logger::custom_build(Debug)
+        .module("custom_utils", Debug)
         .build_default()
         .log_to_stdout()
-        .start();
+        ._start();
 }
