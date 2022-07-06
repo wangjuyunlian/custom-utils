@@ -125,32 +125,84 @@ impl LoggerBuilder2 {
 }
 
 pub struct LoggerFeatureBuilder {
-    log_spec_builder: LogSpecBuilder,
+    app: String,
+    debug_level: LevelFilter,
+    prod_level: LevelFilter,
+    fs: FileSpec,
+    criterion: Criterion,
+    naming: Naming,
+    cleanup: Cleanup,
+    append: bool,
+    modules: Vec<(String, LevelFilter)>,
 }
 impl LoggerFeatureBuilder {
-    pub fn default(level: LevelFilter) -> Self {
-        let mut log_spec_builder = LogSpecBuilder::new();
-        log_spec_builder.default(level);
-        Self { log_spec_builder }
+    pub fn default(app: &str, debug_level: LevelFilter, prod_level: LevelFilter) -> Self {
+        let fs_path = PathBuf::from_str("/var/local/log").unwrap().join(app);
+        let fs = FileSpec::default()
+            .directory(fs_path)
+            .basename(app)
+            .suffix("log");
+        // 若为true，则会覆盖rotate中的数字、keep^
+        let criterion = Criterion::AgeOrSize(Age::Day, 10_000_000);
+        let naming = Naming::Numbers;
+        let cleanup = Cleanup::KeepLogFiles(10);
+        let append = true;
+        Self {
+            app: app.to_string(),
+            debug_level,
+            prod_level,
+            fs,
+            criterion,
+            naming,
+            cleanup,
+            append,
+            modules: Vec::new(),
+        }
     }
     pub fn module<M: AsRef<str>>(mut self, module_name: M, lf: LevelFilter) -> Self {
-        self.log_spec_builder.module(module_name, lf);
+        self.modules.push((module_name.as_ref().to_owned(), lf));
+        self
+    }
+    pub fn config(
+        mut self,
+        fs: FileSpec,
+        criterion: Criterion,
+        naming: Naming,
+        cleanup: Cleanup,
+        append: bool,
+    ) -> Self {
+        self.fs = fs;
+        self.criterion = criterion;
+        self.naming = naming;
+        self.cleanup = cleanup;
+        self.append = append;
         self
     }
     #[cfg(feature = "prod")]
-    pub fn build(self, app: &str) -> LoggerHandle {
+    pub fn build(self) -> LoggerHandle {
+        let mut log_spec_builder = LogSpecBuilder::new();
+        log_spec_builder.default(self.prod_level);
+
         LoggerBuilder2 {
-            logger: Logger::with(self.log_spec_builder.build())
+            logger: Logger::with(log_spec_builder.build())
                 .format(with_thread)
                 .write_mode(WriteMode::Direct),
         }
-        .log_to_file_default(app)
-        .start_with_specfile_default(app)
+        .log_to_file(
+            self.fs,
+            self.criterion,
+            self.naming,
+            self.cleanup,
+            self.append,
+        )
+        .start_with_specfile_default(self.app.as_str())
     }
     #[cfg(not(feature = "prod"))]
-    pub fn build(self, _app: &str) -> LoggerHandle {
+    pub fn build(self) -> LoggerHandle {
+        let mut log_spec_builder = LogSpecBuilder::new();
+        log_spec_builder.default(self.debug_level);
         LoggerBuilder2 {
-            logger: Logger::with(self.log_spec_builder.build())
+            logger: Logger::with(log_spec_builder.build())
                 .format(with_thread)
                 .write_mode(WriteMode::Direct),
         }
@@ -158,48 +210,3 @@ impl LoggerFeatureBuilder {
         .start()
     }
 }
-// 控制台输出日志
-// pub fn logger_debug_default() -> LoggerHandle {
-//     LoggerBuilder::default(LevelFilter::Debug)
-//         .build_default()
-//         .log_to_stdout()
-//         .start()
-// }
-
-// pub fn logger_feature_without(lever: LevelFilter) -> LoggerHandle {
-//     LoggerFeatureBuilder::default(lever).build("app")
-// }
-
-// pub fn logger_debug_feature(app: &str) -> LoggerHandle {
-//     _logger_debug_feature(app)
-// }
-// #[cfg(not(feature = "prod"))]
-// fn _logger_debug_feature(_app: &str) -> LoggerHandle {
-//     logger_debug_default()
-// }
-// #[cfg(feature = "prod")]
-// fn _logger_debug_feature(app: &str) -> LoggerHandle {
-//     let path = PathBuf::from_str("/var/local/etc/")
-//         .unwrap()
-//         .join(app)
-//         .join("logspecification.toml");
-//
-//     let fs_path = PathBuf::from_str("/var/local/log").unwrap().join(app);
-//     let fs = FileSpec::default()
-//         .directory(fs_path)
-//         .basename(app)
-//         .suffix("log")
-//         // 若为true，则会覆盖rotate中的数字、keep^
-//         .use_timestamp(false);
-//
-//     LoggerBuilder::default(LevelFilter::Debug)
-//         .build_default()
-//         .log_to_file(
-//             fs,
-//             Criterion::AgeOrSize(Age::Day, 10_000_000),
-//             Naming::Numbers,
-//             Cleanup::KeepLogFiles(10),
-//             true,
-//         )
-//         .start_with_specfile(path)
-// }

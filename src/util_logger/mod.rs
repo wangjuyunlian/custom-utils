@@ -24,8 +24,12 @@ pub fn logger_stdout_debug() {
 ///         每天或大小达到10m更换日志文件；
 ///         维持10个日志文件；
 ///         生成/var/local/etc/{app}/logspecification.toml的动态配置文件
-pub fn logger_feature(lever: LevelFilter) -> LoggerFeatureBuilder {
-    LoggerFeatureBuilder::default(lever)
+pub fn logger_feature(
+    app: &str,
+    debug_level: LevelFilter,
+    prod_level: LevelFilter,
+) -> LoggerFeatureBuilder {
+    LoggerFeatureBuilder::default(app, debug_level, prod_level)
 }
 
 /// 自定义日志配置
