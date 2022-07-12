@@ -125,9 +125,9 @@ impl LoggerBuilder2 {
 }
 
 pub struct LoggerFeatureBuilder {
-    app: String,
-    debug_level: LevelFilter,
-    prod_level: LevelFilter,
+    _app: String,
+    _debug_level: LevelFilter,
+    _prod_level: LevelFilter,
     fs: FileSpec,
     criterion: Criterion,
     naming: Naming,
@@ -136,7 +136,7 @@ pub struct LoggerFeatureBuilder {
     modules: Vec<(String, LevelFilter)>,
 }
 impl LoggerFeatureBuilder {
-    pub fn default(app: &str, debug_level: LevelFilter, prod_level: LevelFilter) -> Self {
+    pub fn default(app: &str, _debug_level: LevelFilter, prod_level: LevelFilter) -> Self {
         let fs_path = PathBuf::from_str("/var/local/log").unwrap().join(app);
         let fs = FileSpec::default()
             .directory(fs_path)
@@ -148,9 +148,9 @@ impl LoggerFeatureBuilder {
         let cleanup = Cleanup::KeepLogFiles(10);
         let append = true;
         Self {
-            app: app.to_string(),
-            debug_level,
-            prod_level,
+            _app: app.to_string(),
+            _debug_level,
+            _prod_level: prod_level,
             fs,
             criterion,
             naming,
@@ -181,7 +181,7 @@ impl LoggerFeatureBuilder {
     #[cfg(feature = "prod")]
     pub fn build(self) -> LoggerHandle {
         let mut log_spec_builder = LogSpecBuilder::new();
-        log_spec_builder.default(self.prod_level);
+        log_spec_builder.default(self._prod_level);
 
         LoggerBuilder2 {
             logger: Logger::with(log_spec_builder.build())
@@ -195,12 +195,12 @@ impl LoggerFeatureBuilder {
             self.cleanup,
             self.append,
         )
-        .start_with_specfile_default(self.app.as_str())
+        .start_with_specfile_default(self._app.as_str())
     }
     #[cfg(not(feature = "prod"))]
     pub fn build(self) -> LoggerHandle {
         let mut log_spec_builder = LogSpecBuilder::new();
-        log_spec_builder.default(self.debug_level);
+        log_spec_builder.default(self._debug_level);
         LoggerBuilder2 {
             logger: Logger::with(log_spec_builder.build())
                 .format(with_thread)

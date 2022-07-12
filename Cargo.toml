@@ -61,6 +61,10 @@ required-features = ["dev", "logger", "daemon"]
 name = "timer"
 required-features = ["dev", "logger", "timer"]
 
+[[example]]
+name = "self_sign_cert"
+required-features = ["dev", "tls-util"]
+
 [[test]]
 name = "util_tls_util_print"
 required-features = ["tls-util"]
