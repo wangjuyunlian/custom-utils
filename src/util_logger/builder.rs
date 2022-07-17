@@ -1,5 +1,5 @@
 use anyhow::Result;
-use flexi_logger::Age;
+use flexi_logger::{style, Age};
 use flexi_logger::{Cleanup, Criterion, FileSpec, Naming};
 use flexi_logger::{
     DeferredNow, FormatFunction, LevelFilter, LogSpecBuilder, Logger, LoggerHandle, Record,
@@ -15,6 +15,7 @@ use time::macros::format_description;
 
 const TS_DASHES_BLANK_COLONS_DOT_BLANK: &[FormatItem<'static>] =
     format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:3]");
+#[allow(dead_code)]
 fn with_thread(
     w: &mut dyn std::io::Write,
     now: &mut DeferredNow,
@@ -27,6 +28,24 @@ fn with_thread(
         now.format(TS_DASHES_BLANK_COLONS_DOT_BLANK),
         thread::current().name().unwrap_or("<unnamed>"),
         level.to_string(),
+        record.module_path().unwrap_or("<unnamed>"),
+        record.line().unwrap_or(0),
+        &record.args()
+    )
+}
+#[allow(dead_code)]
+pub fn colored_with_thread(
+    w: &mut dyn std::io::Write,
+    now: &mut DeferredNow,
+    record: &Record,
+) -> Result<(), std::io::Error> {
+    let level = record.level();
+    write!(
+        w,
+        "[{}][{}] {:5} [{}:{}] {}",
+        now.format(TS_DASHES_BLANK_COLONS_DOT_BLANK),
+        thread::current().name().unwrap_or("<unnamed>"),
+        style(level).paint(level.to_string()),
         record.module_path().unwrap_or("<unnamed>"),
         record.line().unwrap_or(0),
         &record.args()
@@ -49,7 +68,7 @@ impl LoggerBuilder {
     pub fn build_default(self) -> LoggerBuilder2 {
         LoggerBuilder2 {
             logger: Logger::with(self.log_spec_builder.build())
-                .format(with_thread)
+                .format(colored_with_thread)
                 .write_mode(WriteMode::Direct),
         }
     }
@@ -182,6 +201,9 @@ impl LoggerFeatureBuilder {
     pub fn build(self) -> LoggerHandle {
         let mut log_spec_builder = LogSpecBuilder::new();
         log_spec_builder.default(self._prod_level);
+        for (module, level) in self.modules {
+            log_spec_builder.module(module, level);
+        }
 
         LoggerBuilder2 {
             logger: Logger::with(log_spec_builder.build())
@@ -201,9 +223,12 @@ impl LoggerFeatureBuilder {
     pub fn build(self) -> LoggerHandle {
         let mut log_spec_builder = LogSpecBuilder::new();
         log_spec_builder.default(self._debug_level);
+        for (module, level) in self.modules {
+            log_spec_builder.module(module, level);
+        }
         LoggerBuilder2 {
             logger: Logger::with(log_spec_builder.build())
-                .format(with_thread)
+                .format(colored_with_thread)
                 .write_mode(WriteMode::Direct),
         }
         .log_to_stdout()

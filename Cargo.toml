@@ -17,7 +17,7 @@ anyhow = "1.0"
 log = { version = "0.4" }
 tokio = {version ="1.18", features = ["signal", "rt-multi-thread", "macros", "time"]}
 # ------------- logger start----------------------
-flexi_logger = { version = "0.22", optional = true, features = ["use_chrono_for_offset", "specfile_without_notification", "specfile"] }
+flexi_logger = { version = "0.22", optional = true, features = ["use_chrono_for_offset", "specfile_without_notification", "specfile", "colors"] }
 time = {version = "0.3", features = ["macros", "local-offset"], optional = true}
 # ------------- tls_util start----------------------
 picky = { version = "6.3", features = ["chrono_conversion"], optional = true}
