@@ -9,8 +9,8 @@ use picky::{hash::HashAlgorithm, oids, signature::SignatureAlgorithm};
 
 pub fn main() {
     let (localhost_key, _) = gen_rsa_key_pem_and_file(
-        "./resource/certs/self_signed/localhost_pri.key",
-        "./resource/certs/self_signed/localhost_pub.key",
+        "./resource/certs/self_signed/myhost_pri.key",
+        "./resource/certs/self_signed/myhost_pub.key",
     )
     .unwrap();
 
@@ -28,15 +28,14 @@ pub fn main() {
         ])
         .into_non_critical(),
         Extension::new_subject_alt_name(vec![
-            GeneralName::new_dns_name("www.localhost.com")
-                .unwrap()
-                .into(),
-            GeneralName::new_dns_name("localhost.com").unwrap().into(),
+            GeneralName::new_dns_name("www.myhost.com").unwrap().into(),
+            GeneralName::new_dns_name("myhost.com").unwrap().into(),
         ])
         .into_non_critical(),
     ]);
     let attr = Attribute::new_extension_request(extensions.0);
-    let mut my_name = DirectoryName::new_common_name("localhost");
+
+    let mut my_name = DirectoryName::new_common_name("www.myhost.com"); // 必须是域名??
     my_name.add_attr(NameAttr::StateOrProvinceName, "fujian");
     my_name.add_attr(NameAttr::CountryName, "China");
     let csr = Csr::generate_with_attributes(
@@ -70,7 +69,7 @@ pub fn main() {
         .unwrap();
     let leaf_pem = signed_leaf.to_pem().unwrap();
     std::fs::write(
-        "./resource/certs/self_signed/localhost.crt",
+        "./resource/certs/self_signed/myhost.crt",
         leaf_pem.to_string(),
     )
     .unwrap();
