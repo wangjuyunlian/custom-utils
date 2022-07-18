@@ -27,15 +27,15 @@ pub fn main() {
             oids::kp_code_signing(),
         ])
         .into_non_critical(),
-        Extension::new_subject_alt_name(vec![
-            GeneralName::new_dns_name("www.myhost.com").unwrap().into(),
-            GeneralName::new_dns_name("myhost.com").unwrap().into(),
-        ])
-        .into_non_critical(),
+        // Extension::new_subject_alt_name(vec![
+        //     GeneralName::new_dns_name("www.myhost.com").unwrap().into(),
+        //     GeneralName::new_dns_name("myhost.com").unwrap().into(),
+        // ])
+        // .into_non_critical(),
     ]);
     let attr = Attribute::new_extension_request(extensions.0);
 
-    let mut my_name = DirectoryName::new_common_name("www.myhost.com"); // 必须是域名??
+    let mut my_name = DirectoryName::new_common_name("www.myhost.cn"); // 必须是域名!!!
     my_name.add_attr(NameAttr::StateOrProvinceName, "fujian");
     my_name.add_attr(NameAttr::CountryName, "China");
     let csr = Csr::generate_with_attributes(
