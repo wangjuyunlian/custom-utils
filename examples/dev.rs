@@ -1,7 +1,7 @@
 use crate::daemon::daemon;
 use custom_utils::*;
 use log::LevelFilter::{Debug, Info};
-use log::{debug, info};
+use log::{debug, error, info, warn};
 
 #[tokio::main]
 async fn main() {
@@ -11,7 +11,10 @@ async fn main() {
     custom_utils::logger::logger_feature("dev", Debug, Info)
         .module("custom_utils", Debug)
         .build();
-
+    debug!("abc");
+    info!("abc");
+    warn!("warn");
+    error!("error");
     custom_utils::logger::custom_build(Debug)
         .module("custom_utils", Debug)
         .build_default()
@@ -20,4 +23,6 @@ async fn main() {
 
     debug!("abc");
     info!("abc");
+    warn!("warn");
+    error!("error");
 }

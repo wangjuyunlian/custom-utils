@@ -19,6 +19,8 @@ tokio = {version ="1.18", features = ["signal", "rt-multi-thread", "macros", "ti
 # ------------- logger start----------------------
 flexi_logger = { version = "0.22", optional = true, features = ["use_chrono_for_offset", "specfile_without_notification", "specfile", "colors"] }
 time = {version = "0.3", features = ["macros", "local-offset"], optional = true}
+lazy_static = {version = "1.4", optional = true}
+ansi_term = {version = "0.12", optional = true}
 # ------------- tls_util start----------------------
 picky = { version = "6.3", features = ["chrono_conversion"], optional = true}
 rsa =  { version = "0.6", optional = true}
@@ -46,7 +48,7 @@ dev = []
 prod = []
 tls = ["rustls-pemfile", "rustls-native-certs", "rustls"]
 tls-util = ["picky", "rsa", "chrono", "rand", "der-parser", "x509-parser"]
-logger = ["flexi_logger", "time"]
+logger = ["flexi_logger", "time", "lazy_static", "ansi_term"]
 daemon = ["libsystemd"]
 timer = ["timer-util"]
 

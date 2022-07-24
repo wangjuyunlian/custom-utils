@@ -1,5 +1,6 @@
+use ansi_term::{Color, Style};
 use anyhow::Result;
-use flexi_logger::{style, Age};
+use flexi_logger::Age;
 use flexi_logger::{Cleanup, Criterion, FileSpec, Naming};
 use flexi_logger::{
     DeferredNow, FormatFunction, LevelFilter, LogSpecBuilder, Logger, LoggerHandle, Record,
@@ -233,5 +234,39 @@ impl LoggerFeatureBuilder {
         }
         .log_to_stdout()
         .start()
+    }
+}
+
+lazy_static::lazy_static! {
+    static ref MY_PALETTE: std::sync::RwLock<Palette> = std::sync::RwLock::new(Palette::default());
+}
+pub fn style(level: log::Level) -> Style {
+    let palette = &*(MY_PALETTE.read().unwrap());
+    match level {
+        log::Level::Error => palette.error,
+        log::Level::Warn => palette.warn,
+        log::Level::Info => palette.info,
+        log::Level::Debug => palette.debug,
+        log::Level::Trace => palette.trace,
+    }
+}
+
+#[derive(Debug)]
+struct Palette {
+    pub error: Style,
+    pub warn: Style,
+    pub info: Style,
+    pub debug: Style,
+    pub trace: Style,
+}
+impl Palette {
+    fn default() -> Palette {
+        Palette {
+            error: Style::default().fg(Color::Red).bold(),
+            warn: Style::default().fg(Color::Yellow).bold(),
+            info: Style::default(),
+            debug: Style::default().fg(Color::Fixed(28)),
+            trace: Style::default().fg(Color::Fixed(8)),
+        }
     }
 }
