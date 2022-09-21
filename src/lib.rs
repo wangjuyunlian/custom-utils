@@ -1,5 +1,4 @@
-extern crate core;
-
+mod util_args;
 #[cfg(feature = "daemon")]
 mod util_daemon;
 #[cfg(feature = "logger")]
@@ -8,6 +7,10 @@ mod util_logger;
 mod util_tls;
 #[cfg(feature = "tls-util")]
 mod util_tls_util;
+
+pub mod args {
+    pub use crate::util_args::*;
+}
 
 #[cfg(feature = "logger")]
 pub mod logger {

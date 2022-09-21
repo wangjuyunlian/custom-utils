@@ -1,6 +1,6 @@
 [package]
 name = "custom-utils"
-version = "0.10.4"
+version = "0.10.5"
 edition = "2021"
 description = "Provide customized tools based on features"
 repository = "https://github.com/jm-observer/custom-utils.git"
@@ -9,7 +9,7 @@ license-file = "LICENSE"
 readme = "README.md"
 
 include = [
-    "Makefile.toml", "LICENSE", "Cargo.toml", "README.md", "tests/*.rs", "src/**/*.rs", "examples/*.rs"
+    "Makefile.toml", "LICENSE", "Cargo.toml", "README.md", "src/**/*.rs"
 ]
 
 [dependencies]
