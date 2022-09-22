@@ -1,5 +1,5 @@
 mod util_args;
-#[cfg(feature = "daemon")]
+#[cfg(any(feature = "daemon-sync", feature = "daemon-async"))]
 mod util_daemon;
 #[cfg(feature = "logger")]
 mod util_logger;
@@ -21,7 +21,7 @@ pub mod logger {
     pub use log::{debug, error, info, trace};
 }
 
-#[cfg(feature = "daemon")]
+#[cfg(any(feature = "daemon-sync", feature = "daemon-async"))]
 pub mod daemon {
     pub use crate::util_daemon::daemon;
 }

@@ -1,9 +1,9 @@
-#[cfg(not(feature = "sync"))]
+#[cfg(feature = "daemon-async")]
 mod async_deamon;
-#[cfg(feature = "sync")]
+#[cfg(feature = "daemon-sync")]
 mod sync_deamon;
 
-#[cfg(not(feature = "sync"))]
+#[cfg(feature = "daemon-async")]
 pub use async_deamon::*;
-#[cfg(feature = "sync")]
+#[cfg(feature = "daemon-sync")]
 pub use sync_deamon::*;
