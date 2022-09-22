@@ -1,6 +1,6 @@
 [package]
 name = "custom-utils"
-version = "0.10.5"
+version = "0.10.6"
 edition = "2021"
 description = "Provide customized tools based on features"
 repository = "https://github.com/jm-observer/custom-utils.git"
@@ -9,7 +9,7 @@ license-file = "LICENSE"
 readme = "README.md"
 
 include = [
-    "Makefile.toml", "LICENSE", "Cargo.toml", "README.md", "tests/*.rs", "src/**/*.rs", "examples/*.rs"
+    "Makefile.toml", "LICENSE", "Cargo.toml", "README.md", "src/**/*.rs"
 ]
 
 [dependencies]
@@ -17,7 +17,7 @@ anyhow = "1.0"
 log = { version = "0.4" }
 tokio = {version ="1.18", features = ["signal", "rt-multi-thread", "macros", "time"], optional = true}
 # ------------- logger start----------------------
-flexi_logger = { version = "0.22", optional = true, features = ["use_chrono_for_offset", "specfile_without_notification", "specfile", "colors"] }
+flexi_logger = { version = "0.22", optional = true, features = ["use_chrono_for_offset", "specfile_without_notification", "specfile", "colors"], default-features = false }
 time = {version = "0.3", features = ["macros", "local-offset"], optional = true}
 lazy_static = {version = "1.4", optional = true}
 ansi_term = {version = "0.12", optional = true}
@@ -53,26 +53,3 @@ daemon = ["libsystemd"]
 timer = ["timer-util"]
 sync = []
 async = ["tokio"]
-
-
-[[example]]
-name = "prod"
-required-features = ["prod", "logger", "daemon"]
-[[example]]
-name = "dev"
-path = "examples/dev.rs"
-required-features = ["dev", "logger", "daemon"]
-[[example]]
-name = "timer"
-required-features = ["dev", "logger", "timer"]
-
-[[example]]
-name = "self_sign_cert"
-required-features = ["dev", "tls-util"]
-
-[[test]]
-name = "util_tls_util_print"
-required-features = ["tls-util"]
-[[test]]
-name = "util_tls_util"
-required-features = ["tls-util"]
