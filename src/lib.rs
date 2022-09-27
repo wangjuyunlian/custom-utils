@@ -7,6 +7,9 @@ mod util_logger;
 mod util_tls;
 #[cfg(feature = "tls-util")]
 mod util_tls_util;
+mod util_txrx;
+
+pub use util_txrx::*;
 
 pub mod args {
     pub use crate::util_args::*;
