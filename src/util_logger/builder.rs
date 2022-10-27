@@ -1,5 +1,6 @@
 use ansi_term::{Color, Style};
 use anyhow::Result;
+use flexi_logger::writers::LogWriter;
 use flexi_logger::Age;
 use flexi_logger::{Cleanup, Criterion, FileSpec, Naming};
 use flexi_logger::{
@@ -85,7 +86,7 @@ pub struct LoggerBuilder2 {
     logger: Logger,
 }
 pub struct LoggerBuilder3 {
-    logger: Logger,
+    pub logger: Logger,
 }
 impl LoggerBuilder3 {
     pub fn start(self) -> LoggerHandle {
@@ -125,6 +126,11 @@ impl LoggerBuilder2 {
             Cleanup::KeepLogFiles(10),
             true,
         )
+    }
+    pub fn log_to_writer(mut self, w: Box<dyn LogWriter>) -> LoggerBuilder3 {
+        LoggerBuilder3 {
+            logger: self.logger.log_to_writer(w),
+        }
     }
     pub fn log_to_file(
         self,
