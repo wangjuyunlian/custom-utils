@@ -127,7 +127,7 @@ impl LoggerBuilder2 {
             true,
         )
     }
-    pub fn log_to_writer(mut self, w: Box<dyn LogWriter>) -> LoggerBuilder3 {
+    pub fn log_to_writer(self, w: Box<dyn LogWriter>) -> LoggerBuilder3 {
         LoggerBuilder3 {
             logger: self.logger.log_to_writer(w),
         }
