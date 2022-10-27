@@ -1,6 +1,6 @@
 [package]
 name = "custom-utils"
-version = "0.10.10"
+version = "0.10.11"
 edition = "2021"
 description = "Provide customized tools based on features"
 repository = "https://github.com/jm-observer/custom-utils.git"
@@ -17,8 +17,7 @@ anyhow = "1.0"
 log = { version = "0.4" }
 tokio = {version ="1.18", features = ["signal", "rt-multi-thread", "macros", "time"], optional = true}
 # ------------- logger start----------------------
-flexi_logger = { version = "0.22", optional = true, features = ["use_chrono_for_offset", "specfile_without_notification", "specfile", "colors"], default-features = false }
-time = {version = "0.3", features = ["macros", "local-offset"], optional = true}
+flexi_logger = { version = "0.24", optional = true, features = ["specfile_without_notification", "specfile", "colors"], default-features = false }
 lazy_static = {version = "1.4", optional = true}
 ansi_term = {version = "0.12", optional = true}
 # ------------- tls_util start----------------------
@@ -50,7 +49,7 @@ dev = []
 prod = []
 tls = ["rustls-pemfile", "rustls-native-certs", "rustls"]
 tls-util = ["picky", "rsa", "chrono", "rand", "der-parser", "x509-parser"]
-logger = ["flexi_logger", "time", "lazy_static", "ansi_term"]
+logger = ["flexi_logger", "lazy_static", "ansi_term"]
 daemon-async = ["libsystemd","tokio"]
 daemon-sync = ["libsystemd"]
 timer = ["timer-util"]

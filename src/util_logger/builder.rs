@@ -12,11 +12,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::thread;
 // #[cfg(feature = "prod")]
-use time::format_description::FormatItem;
-use time::macros::format_description;
+const TS_DASHES_BLANK_COLONS_DOT_BLANK: &str = "%Y-%m-%d %H:%M:%S%.3f";
 
-const TS_DASHES_BLANK_COLONS_DOT_BLANK: &[FormatItem<'static>] =
-    format_description!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond digits:3]");
 #[allow(dead_code)]
 fn with_thread(
     w: &mut dyn std::io::Write,
@@ -86,7 +83,7 @@ pub struct LoggerBuilder2 {
     logger: Logger,
 }
 pub struct LoggerBuilder3 {
-    pub logger: Logger,
+    logger: Logger,
 }
 impl LoggerBuilder3 {
     pub fn start(self) -> LoggerHandle {
@@ -160,6 +157,7 @@ pub struct LoggerFeatureBuilder {
     cleanup: Cleanup,
     append: bool,
     modules: Vec<(String, LevelFilter)>,
+    writer: Option<Box<dyn LogWriter>>,
 }
 impl LoggerFeatureBuilder {
     pub fn default(app: &str, _debug_level: LevelFilter, prod_level: LevelFilter) -> Self {
@@ -183,10 +181,15 @@ impl LoggerFeatureBuilder {
             cleanup,
             append,
             modules: Vec::new(),
+            writer: None,
         }
     }
     pub fn module<M: AsRef<str>>(mut self, module_name: M, lf: LevelFilter) -> Self {
         self.modules.push((module_name.as_ref().to_owned(), lf));
+        self
+    }
+    pub fn log_to_write(mut self, w: Box<dyn LogWriter>) -> Self {
+        self.writer = Some(w);
         self
     }
     pub fn config(
@@ -211,20 +214,29 @@ impl LoggerFeatureBuilder {
         for (module, level) in self.modules {
             log_spec_builder.module(module, level);
         }
-
-        LoggerBuilder2 {
-            logger: Logger::with(log_spec_builder.build())
+        let path = PathBuf::from_str("/var/local/etc/")
+            .unwrap()
+            .join(self._app)
+            .join("logspecification.toml");
+        if let Some(w) = self.writer {
+            Logger::with(log_spec_builder.build())
                 .format(with_thread)
-                .write_mode(WriteMode::Direct),
+                .write_mode(WriteMode::Direct)
+                .log_to_file_and_writer(self.fs, w)
+                .o_append(self.append)
+                .rotate(self.criterion, self.naming, self.cleanup)
+                .start_with_specfile(path)
+                .unwrap()
+        } else {
+            Logger::with(log_spec_builder.build())
+                .format(with_thread)
+                .write_mode(WriteMode::Direct)
+                .log_to_file(self.fs)
+                .o_append(self.append)
+                .rotate(self.criterion, self.naming, self.cleanup)
+                .start_with_specfile(path)
+                .unwrap()
         }
-        .log_to_file(
-            self.fs,
-            self.criterion,
-            self.naming,
-            self.cleanup,
-            self.append,
-        )
-        .start_with_specfile_default(self._app.as_str())
     }
     #[cfg(not(feature = "prod"))]
     pub fn build(self) -> LoggerHandle {
@@ -233,13 +245,24 @@ impl LoggerFeatureBuilder {
         for (module, level) in self.modules {
             log_spec_builder.module(module, level);
         }
-        LoggerBuilder2 {
-            logger: Logger::with(log_spec_builder.build())
-                .format(colored_with_thread)
-                .write_mode(WriteMode::Direct),
+        if let Some(w) = self.writer {
+            LoggerBuilder2 {
+                logger: Logger::with(log_spec_builder.build())
+                    .format(colored_with_thread)
+                    .write_mode(WriteMode::Direct)
+                    .duplicate_to_stdout(self._debug_level.into()),
+            }
+            .log_to_writer(w)
+            .start()
+        } else {
+            LoggerBuilder2 {
+                logger: Logger::with(log_spec_builder.build())
+                    .format(colored_with_thread)
+                    .write_mode(WriteMode::Direct),
+            }
+            .log_to_stdout()
+            .start()
         }
-        .log_to_stdout()
-        .start()
     }
 }
 
